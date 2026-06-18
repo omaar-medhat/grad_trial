@@ -171,4 +171,5 @@ export const fbPath = {
   history: (uid: string) => `users/${uid}/history`,
   alerts: (uid: string) => `users/${uid}/alerts`,
   profile: (uid: string) => `users/${uid}/profile`,
+  goals: (uid: string) => `users/${uid}/goals`,
 };

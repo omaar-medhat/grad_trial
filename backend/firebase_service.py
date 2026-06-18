@@ -316,9 +316,37 @@ class FirebaseService:
     # ------------------------------------------------------------------
     # Telemetry
     # ------------------------------------------------------------------
+    def _rest_put(self, path: str, data: Dict[str, Any]) -> bool:
+        """Write a node to RTDB via the REST API (PUT = set)."""
+        import json as _json
+        import urllib.error
+        import urllib.request
+
+        secret = (
+            os.environ.get("FIREBASE_DB_SECRET")
+            or os.environ.get("FIREBASE_DB_AUTH")
+        )
+        auth_param = f"&auth={secret}" if secret else ""
+        url = f"{self._database_url}/{path}.json?_={int(time.time() * 1000)}{auth_param}"
+        body = _json.dumps(data).encode("utf-8")
+        req = urllib.request.Request(
+            url, data=body, method="PUT",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=8):
+                pass
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Firebase REST write failed for '%s': %s", path, exc)
+            return False
+
     def write_latest(self, uid: str, telemetry: Dict[str, Any]) -> None:
         if self._mode == "admin_sdk":
             self._db.reference(f"users/{uid}/latest_telemetry").set(telemetry)
+        elif self._mode == "rest" and self._database_url:
+            self._rest_put(f"users/{uid}/latest_telemetry", telemetry)
+            self._memory.set_latest(uid, telemetry)
         else:
             self._memory.set_latest(uid, telemetry)
 
@@ -347,6 +375,21 @@ class FirebaseService:
         if self._mode == "admin_sdk":
             ref = self._db.reference(f"users/{uid}/history").push(record)
             return ref.key
+        if self._mode == "rest" and self._database_url:
+            import json as _json
+            import urllib.request
+            url = f"{self._database_url}/users/{uid}/history.json"
+            body = _json.dumps(record).encode("utf-8")
+            req = urllib.request.Request(
+                url, data=body, method="POST",
+                headers={"Content-Type": "application/json"},
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=8) as resp:
+                    result = _json.loads(resp.read().decode("utf-8"))
+                    return result.get("name", "")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Firebase REST push_history failed: %s", exc)
         return self._memory.push_history(uid, record)
 
     def read_history(self, uid: str, limit: int = 100) -> List[Dict[str, Any]]:

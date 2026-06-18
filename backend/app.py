@@ -249,11 +249,20 @@ def create_app() -> Flask:
     app.config["CHATBOT"] = chatbot
     app.config["ML"] = ml_models
 
+    # --- Track the last active frontend user UID ---------------------
+    # The sensor (Arduino) doesn't know the Firebase UID. We remember the
+    # most recent UID seen from frontend requests (?uid=...) and use it
+    # when the sensor sends data without a UID.
+    _last_frontend_uid: Dict[str, Any] = {"uid": None}
+
     # --- Per-request metric ------------------------------------------
     @app.before_request
     def _count_request():
         _metrics["requests_total"] += 1
         _metrics["requests_by_path"][request.path] += 1
+        seen_uid = request.args.get("uid")
+        if seen_uid and seen_uid != "demo-user-001":
+            _last_frontend_uid["uid"] = seen_uid
 
     # --- No-store on all API/health responses ------------------------
     # Live telemetry must never be served from a browser/proxy cache, or the
@@ -1104,6 +1113,83 @@ def create_app() -> Flask:
     @limiter.limit(os.environ.get("RATE_LIMIT_CHAT", "30 per minute"))
     def post_chat_legacy():
         return _chat_impl()
+
+    # -------------------- Legacy Arduino bridge --------------------
+    # The old arduino_api.py received sensor data on POST /update_telemetry
+    # and served the latest reading on GET /latest. These two endpoints
+    # let the existing ESP32 sketch work without reflashing.
+
+    _arduino_latest: Dict[str, Any] = {"ok": False, "ts": None, "data": None}
+
+    @app.post("/update_telemetry")
+    @limiter.limit(os.environ.get("RATE_LIMIT_TELEMETRY", "60 per minute"))
+    def update_telemetry_legacy():
+        nonlocal _arduino_latest
+        payload = request.get_json(silent=True) or {}
+        if not payload:
+            return jsonify({"status": "error", "message": "No data received"}), 400
+
+        now_ms = int(time.time() * 1000)
+        _arduino_latest = {"ok": True, "ts": now_ms, "data": payload}
+
+        # Convert old Arduino format → new telemetry schema
+        temp_f = payload.get("temperature", 0)
+        temp_c = round((temp_f - 32) * 5 / 9, 1) if temp_f and temp_f > 0 else None
+
+        telemetry = {
+            "heart_rate": payload.get("heart_rate"),
+            "spo2": payload.get("spo2"),
+            "temperature_c": temp_c,
+            "steps": payload.get("steps", 0),
+            "sleep_duration_sec": payload.get("sleep_duration", 0),
+            "battery_level": payload.get("battery_level"),
+            "fall_alert": payload.get("fall_alert", False),
+            "source": "real_bracelet",
+            "timestamp": now_ms,
+        }
+
+        # Feed into the existing analysis + storage pipeline
+        try:
+            analysis = analyze(telemetry)
+        except TelemetryValidationError as exc:
+            return err("INVALID_INPUT", str(exc), status=400)
+
+        telemetry["risk_level"] = analysis["risk_level"]
+        telemetry["wellness_score"] = analysis["wellness_score"]
+        telemetry["activity"] = analysis["activity"]
+        telemetry["stress_label"] = analysis["stress"]["label"]
+        telemetry["stress_score"] = analysis["stress"]["score"]
+        telemetry["alert_message"] = analysis["alert_message"]
+
+        analysis = _enrich_with_ml(telemetry, analysis)
+        if "ml" in analysis:
+            telemetry["ml_risk_label"] = analysis["ml"].get("risk", {}).get("label")
+            telemetry["ml_anomaly_score"] = analysis["ml"].get("anomaly", {}).get("score")
+
+        # Arduino doesn't send a uid — use the last UID seen from frontend
+        explicit_uid = payload.get("user_id") or payload.get("uid")
+        uid = explicit_uid or _last_frontend_uid["uid"] or _resolve_uid(payload)
+        firebase.write_latest(uid, telemetry)
+        firebase.push_history(uid, telemetry)
+
+        if analysis["risk_level"] != "normal":
+            firebase.push_alert(uid, {
+                "risk_level": analysis["risk_level"],
+                "message": analysis["alert_message"],
+                "reasons": analysis["reasons"],
+                "source": "rule_engine",
+                "timestamp": now_ms,
+            })
+            _metrics["alerts_raised"] += 1
+
+        _maybe_alert_battery(uid, telemetry)
+        _metrics["telemetry_ingested"] += 1
+
+        return jsonify({"status": "success"}), 200
+
+    @app.get("/latest")
+    def get_latest_legacy():
+        return jsonify(_arduino_latest)
 
     return app
 
