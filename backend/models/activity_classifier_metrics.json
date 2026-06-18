@@ -1,0 +1,153 @@
+{
+  "model": "ActivityClassifier",
+  "dataset": "UCI HAR (Human Activity Recognition Using Smartphones)",
+  "dataset_url": "https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones",
+  "n_features": 561,
+  "classes": [
+    "WALKING",
+    "WALKING_UPSTAIRS",
+    "WALKING_DOWNSTAIRS",
+    "SITTING",
+    "STANDING",
+    "LAYING"
+  ],
+  "training_samples": 7352,
+  "test_samples": 2947,
+  "best_model": "linear_svm",
+  "test_accuracy": 0.962,
+  "test_macro_f1": 0.9625,
+  "comparison": [
+    {
+      "model": "linear_svm",
+      "accuracy": 0.962,
+      "macro_f1": 0.9625,
+      "train_seconds": 20.03
+    },
+    {
+      "model": "logistic_regression",
+      "accuracy": 0.9549,
+      "macro_f1": 0.9547,
+      "train_seconds": 1.42
+    },
+    {
+      "model": "mlp",
+      "accuracy": 0.9444,
+      "macro_f1": 0.9442,
+      "train_seconds": 4.46
+    },
+    {
+      "model": "random_forest",
+      "accuracy": 0.9287,
+      "macro_f1": 0.927,
+      "train_seconds": 2.91
+    },
+    {
+      "model": "knn",
+      "accuracy": 0.8863,
+      "macro_f1": 0.8827,
+      "train_seconds": 0.07
+    }
+  ],
+  "per_class": {
+    "WALKING": {
+      "precision": 0.9723865877712031,
+      "recall": 0.9939516129032258,
+      "f1-score": 0.9830508474576272,
+      "support": 496.0
+    },
+    "WALKING_UPSTAIRS": {
+      "precision": 0.9744680851063829,
+      "recall": 0.9723991507430998,
+      "f1-score": 0.973432518597237,
+      "support": 471.0
+    },
+    "WALKING_DOWNSTAIRS": {
+      "precision": 1.0,
+      "recall": 0.969047619047619,
+      "f1-score": 0.9842805320435308,
+      "support": 420.0
+    },
+    "SITTING": {
+      "precision": 0.9574944071588367,
+      "recall": 0.8716904276985743,
+      "f1-score": 0.9125799573560768,
+      "support": 491.0
+    },
+    "STANDING": {
+      "precision": 0.888507718696398,
+      "recall": 0.9736842105263158,
+      "f1-score": 0.9291479820627803,
+      "support": 532.0
+    },
+    "LAYING": {
+      "precision": 0.9962476547842402,
+      "recall": 0.9888268156424581,
+      "f1-score": 0.9925233644859813,
+      "support": 537.0
+    },
+    "accuracy": 0.9619952494061758,
+    "macro avg": {
+      "precision": 0.9648507422528435,
+      "recall": 0.9615999727602155,
+      "f1-score": 0.9625025336672056,
+      "support": 2947.0
+    },
+    "weighted avg": {
+      "precision": 0.9633793914150773,
+      "recall": 0.9619952494061758,
+      "f1-score": 0.9619430920613402,
+      "support": 2947.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      493,
+      2,
+      0,
+      1,
+      0,
+      0
+    ],
+    [
+      10,
+      458,
+      0,
+      3,
+      0,
+      0
+    ],
+    [
+      4,
+      5,
+      407,
+      1,
+      3,
+      0
+    ],
+    [
+      0,
+      5,
+      0,
+      428,
+      56,
+      2
+    ],
+    [
+      0,
+      0,
+      0,
+      14,
+      518,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      6,
+      531
+    ]
+  ],
+  "serving_note": "Consumes 561 IMU features; activates with the bracelet's raw accel/gyro stream (BLE motion characteristic). Until then the deterministic classify_activity label is shown."
+}

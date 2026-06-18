@@ -1,0 +1,194 @@
+openapi: 3.0.3
+info:
+  title: PulseGuard AI API
+  version: 1.0.0
+  description: |
+    Backend API for PulseGuard AI — smart health monitoring bracelet companion.
+    Every response uses the envelope `{ ok: boolean, data?, message?, error? }`.
+servers:
+  - url: http://127.0.0.1:5000
+    description: Local development
+paths:
+  /health:
+    get:
+      summary: Liveness + version
+      responses:
+        "200": { description: OK }
+  /api/metrics:
+    get:
+      summary: Lightweight in-process counters
+      responses:
+        "200": { description: OK }
+  /api/telemetry:
+    post:
+      summary: Ingest a telemetry reading; runs anomaly engine; persists
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Telemetry" }
+      responses:
+        "200": { description: OK }
+        "400": { description: Validation error }
+  /api/latest:
+    get:
+      summary: Latest reading for the active user
+      parameters:
+        - in: query
+          name: uid
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /api/vitals/latest:
+    get:
+      summary: Normalized current state (single source of truth) — vitals + model-derived values + source/is_simulated + timestamp
+      parameters:
+        - in: query
+          name: uid
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /api/history:
+    get:
+      summary: Recent telemetry history
+      parameters:
+        - in: query
+          name: uid
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 100, maximum: 1000 }
+      responses:
+        "200": { description: OK }
+  /api/alerts:
+    get:
+      summary: Recent alerts
+      parameters:
+        - in: query
+          name: uid
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50, maximum: 500 }
+      responses:
+        "200": { description: OK }
+  /api/reports/daily:
+    get:
+      summary: Daily health summary (last 24h) for the active user
+      parameters:
+        - in: query
+          name: uid
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /api/reports/weekly:
+    get:
+      summary: Weekly health summary (last 7 days) for the active user
+      parameters:
+        - in: query
+          name: uid
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /api/reports/export.csv:
+    get:
+      summary: Download the user's reading history as CSV
+      parameters:
+        - in: query
+          name: uid
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 1000, maximum: 5000 }
+      responses:
+        "200":
+          description: CSV attachment
+          content:
+            text/csv:
+              schema: { type: string }
+  /api/simulate:
+    post:
+      summary: Generate one synthetic reading server-side and ingest it
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id: { type: string }
+                mode:
+                  type: string
+                  description: Force a demo scenario (see /api/simulate/modes)
+                  enum: [resting, walking, running, sleep, fever, high_fever, stress, anomaly, low_battery]
+      responses:
+        "200": { description: OK }
+        "400": { description: Unknown mode }
+  /api/simulate/modes:
+    get:
+      summary: List the demo scenarios the simulator can be forced into
+      responses:
+        "200": { description: OK }
+  /api/ml/predict/stress:
+    post:
+      summary: WESAD stress model (binary non_stress/stress); returns label, confidence, probabilities, model_name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vector:
+                  type: array
+                  items: { type: number }
+                  description: 252 WESAD features in canonical order
+                features:
+                  type: object
+                  additionalProperties: { type: number }
+                  description: WESAD features keyed by name (missing ones imputed)
+      responses:
+        "200": { description: OK }
+        "400": { description: No/odd-length features }
+        "503": { description: Model artifact not loaded }
+  /api/chat:
+    post:
+      summary: Safe healthcare chatbot reply (rule-based fallback if model unavailable)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string }
+                user_id: { type: string }
+                history:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:    { type: string, enum: [user, assistant] }
+                      content: { type: string }
+      responses:
+        "200": { description: OK }
+components:
+  schemas:
+    Telemetry:
+      type: object
+      required: [heart_rate, spo2, temperature_c, timestamp]
+      properties:
+        user_id:            { type: string }
+        heart_rate:         { type: number, minimum: 20, maximum: 250 }
+        spo2:               { type: number, minimum: 50, maximum: 100 }
+        temperature_c:      { type: number, minimum: 25, maximum: 45 }
+        steps:              { type: integer, minimum: 0, maximum: 200000 }
+        calories:           { type: number, minimum: 0, maximum: 20000 }
+        sleep_duration_sec: { type: integer, minimum: 0, maximum: 86400 }
+        battery_level:      { type: integer, minimum: 0, maximum: 100, description: "Bracelet charge %" }
+        activity_level:     { type: integer, minimum: 0, maximum: 100, description: "Instantaneous motion index" }
+        source:
+          type: string
+          enum: [simulator, real_bracelet, uploaded_dataset]
+        timestamp:          { type: integer, description: "ms epoch" }

@@ -1,0 +1,148 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Surfaces */
+    --background: 210 22% 98%;
+    --foreground: 215 28% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 28% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 28% 14%;
+
+    /* Brand */
+    --primary: 162 62% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 28% 95%;
+    --secondary-foreground: 215 25% 22%;
+
+    --muted: 210 22% 96%;
+    --muted-foreground: 215 14% 46%;
+
+    --accent: 200 78% 48%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 22% 90%;
+    --input: 210 22% 90%;
+    --ring: 162 62% 38%;
+
+    --radius: 0.875rem;
+
+    /* Health risk palette — one source of truth used by cards, badges, charts.
+       normal=green, warning=amber, danger=red, info=blue, low=cool blue. */
+    --health-normal: 152 64% 40%;
+    --health-warning: 36 95% 50%;
+    --health-danger: 0 78% 55%;
+    --health-info: 200 78% 48%;
+    --health-low: 213 65% 56%;
+
+    /* Gradients & shadows */
+    --gradient-health: linear-gradient(135deg, hsl(162 62% 38%), hsl(200 78% 48%));
+    --gradient-danger: linear-gradient(135deg, hsl(0 78% 55%), hsl(20 90% 55%));
+    --gradient-warning: linear-gradient(135deg, hsl(36 95% 50%), hsl(20 90% 55%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 22% 98%));
+
+    --shadow-card: 0 1px 2px hsl(215 28% 14% / 0.04), 0 6px 18px hsl(215 28% 14% / 0.05);
+    --shadow-card-hover: 0 6px 22px hsl(215 28% 14% / 0.10), 0 12px 36px hsl(215 28% 14% / 0.06);
+    --shadow-glow-green: 0 0 28px hsl(162 62% 38% / 0.18);
+
+    /* Sidebar tokens (shadcn) */
+    --sidebar-background: 0 0% 99%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html, body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer utilities {
+  .health-card {
+    @apply rounded-xl border border-border bg-card p-5 transition-all duration-300;
+    box-shadow: var(--shadow-card);
+  }
+
+  .health-card:hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .pulse-dot {
+    @apply relative;
+  }
+
+  .pulse-dot::after {
+    content: '';
+    @apply absolute top-0 right-0 h-2.5 w-2.5 rounded-full;
+    background: hsl(var(--health-normal));
+    animation: pulse-ring 2s ease-out infinite;
+  }
+
+  .gradient-health-bg {
+    background: var(--gradient-health);
+  }
+
+  .gradient-danger-bg {
+    background: var(--gradient-danger);
+  }
+
+  .text-gradient-health {
+    background: var(--gradient-health);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 hsl(var(--health-normal) / 0.5); }
+  70%  { box-shadow: 0 0 0 10px hsl(var(--health-normal) / 0); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--health-normal) / 0); }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}

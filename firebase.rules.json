@@ -1,0 +1,90 @@
+{
+  "_comment": "Firebase Realtime Database security rules for PulseGuard AI. Designed for the schema documented in docs/firebase.md. PulseGuard authenticates users with Firebase Authentication (Email/Password), so auth.uid is the canonical identity. The backend uses the Firebase Admin SDK which bypasses these rules — that's intentional, so server-side telemetry ingest is always allowed.",
+  "_note_storage": "Cloud Storage is NOT used. No storage.rules file is required.",
+  "_note_firestore": "Cloud Firestore is NOT used. No firestore.rules file is required.",
+
+  "_note_sensor_root": "The bracelet firmware publishes to the ROOT nodes /latest_telemetry and /history. They are world-readable here so the backend can read live data over the REST API without a service-account file (prototype convenience). For production, lock these down and give the backend a service account (FIREBASE_CREDENTIALS_PATH) or a DB auth token (FIREBASE_DB_SECRET). Firebase 'test mode' rules EXPIRE after ~30 days and flip to deny-all — if the app suddenly shows disconnected/unauthorized, re-deploy these rules.",
+
+  "rules": {
+    "latest_telemetry": {
+      ".read": true,
+      ".write": true
+    },
+    "history": {
+      ".read": true,
+      ".write": true,
+      "$push_id": {
+        ".validate": "newData.hasChildren(['heart_rate','timestamp'])"
+      }
+    },
+
+    "users": {
+      "$uid": {
+        ".read":  "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+
+        "latest_telemetry": {
+          ".validate": "newData.hasChildren(['heart_rate','spo2','temperature_c','steps','timestamp'])",
+          "heart_rate":          { ".validate": "newData.isNumber() && newData.val() >= 20  && newData.val() <= 250" },
+          "spo2":                { ".validate": "newData.isNumber() && newData.val() >= 50  && newData.val() <= 100" },
+          "temperature_c":       { ".validate": "newData.isNumber() && newData.val() >= 25  && newData.val() <= 45"  },
+          "steps":               { ".validate": "newData.isNumber() && newData.val() >= 0   && newData.val() <= 200000" },
+          "calories":            { ".validate": "newData.isNumber() && newData.val() >= 0   && newData.val() <= 20000"  },
+          "sleep_duration_sec":  { ".validate": "newData.isNumber() && newData.val() >= 0   && newData.val() <= 86400"  },
+          "battery_level":       { ".validate": "newData.isNumber() && newData.val() >= 0   && newData.val() <= 100"    },
+          "wellness_score":      { ".validate": "newData.isNumber() && newData.val() >= 0   && newData.val() <= 100"    },
+          "activity_level":      { ".validate": "newData.isNumber() && newData.val() >= 0   && newData.val() <= 100"    },
+          "activity":            { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "stress_label":        { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "stress_score":        { ".validate": "newData.isNumber() && newData.val() >= 0   && newData.val() <= 100"    },
+          "source":              { ".validate": "newData.isString() && newData.val().matches(/^(simulator|real_bracelet|uploaded_dataset)$/)" },
+          "risk_level":          { ".validate": "newData.isString() && newData.val().matches(/^(normal|warning|high)$/)" },
+          "alert_message":       { ".validate": "newData.isString() && newData.val().length <= 500" },
+          "timestamp":           { ".validate": "newData.isNumber()" },
+          "$other":              { ".validate": false }
+        },
+
+        "history": {
+          "$record_id": {
+            ".validate": "newData.hasChildren(['heart_rate','spo2','temperature_c','timestamp'])",
+            "heart_rate":          { ".validate": "newData.isNumber()" },
+            "spo2":                { ".validate": "newData.isNumber()" },
+            "temperature_c":       { ".validate": "newData.isNumber()" },
+            "steps":               { ".validate": "newData.isNumber()" },
+            "calories":            { ".validate": "newData.isNumber()" },
+            "sleep_duration_sec":  { ".validate": "newData.isNumber()" },
+            "risk_level":          { ".validate": "newData.isString()" },
+            "alert_message":       { ".validate": "newData.isString()" },
+            "timestamp":           { ".validate": "newData.isNumber()" },
+            "$other":              { ".validate": true }
+          }
+        },
+
+        "alerts": {
+          "$alert_id": {
+            ".validate": "newData.hasChildren(['risk_level','message','timestamp'])",
+            "risk_level": { ".validate": "newData.isString() && newData.val().matches(/^(warning|high)$/)" },
+            "message":    { ".validate": "newData.isString() && newData.val().length <= 500" },
+            "source":     { ".validate": "newData.isString()" },
+            "reasons":    { ".validate": "newData.hasChildren() || newData.val() == null" },
+            "timestamp":  { ".validate": "newData.isNumber()" },
+            "$other":     { ".validate": true }
+          }
+        },
+
+        "profile": {
+          ".validate": "newData.hasChildren() || newData.val() == null",
+          "display_name":       { ".validate": "newData.isString() && newData.val().length <= 100" },
+          "gender":             { ".validate": "newData.isString() && newData.val().length <= 20"  },
+          "blood_type":         { ".validate": "newData.isString() && newData.val().length <= 5"   },
+          "date_of_birth":      { ".validate": "newData.isString() && newData.val().length <= 20"  },
+          "height_cm":          { ".validate": "newData.isString() || newData.isNumber()" },
+          "weight_kg":          { ".validate": "newData.isString() || newData.isNumber()" },
+          "emergency_contact":  { ".validate": "newData.isString() && newData.val().length <= 200" },
+          "updated_at":         { ".validate": "newData.isNumber()" },
+          "$other":             { ".validate": true }
+        }
+      }
+    }
+  }
+}

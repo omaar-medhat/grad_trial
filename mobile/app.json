@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "PulseGuard AI",
+    "slug": "pulseguard-mobile",
+    "version": "1.0.0",
+    "scheme": "pulseguard",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f6f9fb"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ai.pulseguard.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#f6f9fb"
+      },
+      "package": "ai.pulseguard.mobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2bb3a3"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": { "origin": false }
+    }
+  }
+}

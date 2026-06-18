@@ -1,0 +1,73 @@
+{
+  "model": "RiskClassifier",
+  "architecture": "StandardScaler + MLP(64-32-16, ReLU) + softmax(3)",
+  "features": [
+    "heart_rate",
+    "spo2",
+    "temperature_c",
+    "steps",
+    "calories",
+    "sleep_duration_sec"
+  ],
+  "classes": [
+    "normal",
+    "warning",
+    "high"
+  ],
+  "training_samples": 51000,
+  "test_samples": 9000,
+  "test_accuracy": 0.9914,
+  "per_class": {
+    "normal": {
+      "precision": 0.9988221436984688,
+      "recall": 0.9803468208092485,
+      "f1-score": 0.9894982497082847,
+      "support": 1730.0
+    },
+    "warning": {
+      "precision": 0.9816004672897196,
+      "recall": 0.9958518518518519,
+      "f1-score": 0.9886748051183998,
+      "support": 3375.0
+    },
+    "high": {
+      "precision": 0.9969056214543579,
+      "recall": 0.9925545571245186,
+      "f1-score": 0.994725331274926,
+      "support": 3895.0
+    },
+    "accuracy": 0.9914444444444445,
+    "macro avg": {
+      "precision": 0.9924427441475153,
+      "recall": 0.9895844099285397,
+      "f1-score": 0.9909661287005368,
+      "support": 9000.0
+    },
+    "weighted avg": {
+      "precision": 0.9915345868073198,
+      "recall": 0.9914444444444445,
+      "f1-score": 0.991451622731752,
+      "support": 9000.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      1696,
+      34,
+      0
+    ],
+    [
+      2,
+      3361,
+      12
+    ],
+    [
+      0,
+      29,
+      3866
+    ]
+  ],
+  "train_seconds": 11.96,
+  "n_iterations": 46,
+  "loss_curve_final": 0.020582010562977884
+}

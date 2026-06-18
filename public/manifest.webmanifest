@@ -1,0 +1,25 @@
+{
+  "name": "PulseGuard AI",
+  "short_name": "PulseGuard",
+  "description": "AI-enabled smart health monitoring bracelet companion app",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f9fb",
+  "theme_color": "#198060",
+  "categories": ["health", "medical", "lifestyle"],
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

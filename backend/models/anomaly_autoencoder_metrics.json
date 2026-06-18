@@ -1,0 +1,14 @@
+{
+  "model": "AnomalyAutoencoder",
+  "architecture": "StandardScaler + MLP autoencoder (6\u21924\u21922\u21924\u21926)",
+  "training_samples": 20000,
+  "threshold_p99": 1.244781,
+  "train_seconds": 5.81,
+  "n_iterations": 141,
+  "loss_curve_final": 0.14426562047004698,
+  "test": {
+    "auc_normal_vs_abnormal": 0.7996,
+    "flagged_rate_overall": 0.4746,
+    "abnormal_recall_at_threshold": 0.5667
+  }
+}

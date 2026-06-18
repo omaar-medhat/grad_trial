@@ -1,0 +1,157 @@
+{
+  "model": "WESAD Stress Classifier (real artifact)",
+  "dataset": "WESAD",
+  "task": "binary_stress_detection",
+  "feature_mode": "wrist_chest",
+  "split_mode": "group_split",
+  "selection_metric": "accuracy",
+  "window_sec": 60,
+  "step_sec": 15,
+  "n_features": 252,
+  "label_mapping": {
+    "0": "non_stress",
+    "1": "stress"
+  },
+  "best_model": "MLP",
+  "train_subjects": [
+    "S10",
+    "S11",
+    "S15",
+    "S16",
+    "S3",
+    "S4",
+    "S5",
+    "S6",
+    "S7",
+    "S8",
+    "S9"
+  ],
+  "test_subjects": [
+    "S13",
+    "S14",
+    "S17",
+    "S2"
+  ],
+  "comparison": [
+    {
+      "model": "MLP",
+      "accuracy": 0.9289805269186713,
+      "precision": 0.8333333333333334,
+      "recall": 0.8505154639175257,
+      "f1_score": 0.8418367346938775,
+      "roc_auc": 0.9507690205426417
+    },
+    {
+      "model": "CatBoost",
+      "accuracy": 0.9026345933562429,
+      "precision": 0.7883597883597884,
+      "recall": 0.7680412371134021,
+      "f1_score": 0.7780678851174935,
+      "roc_auc": 0.9661949804898047
+    },
+    {
+      "model": "ExtraTrees_Tuned",
+      "accuracy": 0.8969072164948454,
+      "precision": 0.956140350877193,
+      "recall": 0.5618556701030928,
+      "f1_score": 0.7077922077922078,
+      "roc_auc": 0.964479297936626
+    },
+    {
+      "model": "RBFSVM",
+      "accuracy": 0.8923253150057274,
+      "precision": 0.7747252747252747,
+      "recall": 0.7268041237113402,
+      "f1_score": 0.75,
+      "roc_auc": 0.9436064254589072
+    },
+    {
+      "model": "HistGradientBoosting",
+      "accuracy": 0.8888888888888888,
+      "precision": 0.7679558011049724,
+      "recall": 0.7164948453608248,
+      "f1_score": 0.7413333333333333,
+      "roc_auc": 0.9474363451406709
+    },
+    {
+      "model": "GradientBoosting",
+      "accuracy": 0.8888888888888888,
+      "precision": 0.770949720670391,
+      "recall": 0.711340206185567,
+      "f1_score": 0.739946380697051,
+      "roc_auc": 0.9531072073850264
+    },
+    {
+      "model": "LogisticRegression",
+      "accuracy": 0.8762886597938144,
+      "precision": 0.6462585034013606,
+      "recall": 0.979381443298969,
+      "f1_score": 0.7786885245901639,
+      "roc_auc": 0.9632494723896573
+    },
+    {
+      "model": "VotingEnsemble",
+      "accuracy": 0.8751431844215349,
+      "precision": 0.7544910179640718,
+      "recall": 0.6494845360824743,
+      "f1_score": 0.6980609418282548,
+      "roc_auc": 0.9543142583848291
+    },
+    {
+      "model": "XGBoost",
+      "accuracy": 0.8739977090492554,
+      "precision": 0.7658227848101266,
+      "recall": 0.6237113402061856,
+      "f1_score": 0.6875,
+      "roc_auc": 0.9483245524801482
+    },
+    {
+      "model": "LinearSVM",
+      "accuracy": 0.8648339060710195,
+      "precision": 0.6386861313868614,
+      "recall": 0.9020618556701031,
+      "f1_score": 0.7478632478632479,
+      "roc_auc": 0.9471402760275117
+    },
+    {
+      "model": "LightGBM",
+      "accuracy": 0.8648339060710195,
+      "precision": 0.6881188118811881,
+      "recall": 0.7164948453608248,
+      "f1_score": 0.702020202020202,
+      "roc_auc": 0.9399738851859162
+    },
+    {
+      "model": "RandomForest_Tuned",
+      "accuracy": 0.8602520045819015,
+      "precision": 0.95,
+      "recall": 0.3917525773195876,
+      "f1_score": 0.5547445255474452,
+      "roc_auc": 0.9570927531390917
+    },
+    {
+      "model": "ExtraTrees",
+      "accuracy": 0.854524627720504,
+      "precision": 0.9855072463768116,
+      "recall": 0.35051546391752575,
+      "f1_score": 0.5171102661596958,
+      "roc_auc": 0.9704538208098629
+    },
+    {
+      "model": "RandomForest",
+      "accuracy": 0.8510882016036655,
+      "precision": 0.9571428571428572,
+      "recall": 0.34536082474226804,
+      "f1_score": 0.5075757575757576,
+      "roc_auc": 0.9704576165677239
+    },
+    {
+      "model": "XGBoost_Tuned",
+      "accuracy": 0.8235967926689576,
+      "precision": 0.6190476190476191,
+      "recall": 0.5360824742268041,
+      "f1_score": 0.574585635359116,
+      "roc_auc": 0.9287536249487574
+    }
+  ]
+}

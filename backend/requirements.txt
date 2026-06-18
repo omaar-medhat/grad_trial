@@ -1,0 +1,17 @@
+Flask==3.0.3
+flask-cors==4.0.1
+flask-limiter==3.8.0
+python-dotenv==1.0.1
+firebase-admin==6.5.0
+pydantic==2.7.1
+gunicorn==22.0.0
+
+# Trained neural-network models (RiskClassifier, AnomalyAutoencoder, IntentClassifier).
+# All three live in backend/ml/ and are loaded at startup.
+scikit-learn>=1.5
+joblib>=1.4
+numpy>=1.26
+
+# Optional heavy AI deps (TinyLlama-1.1B local LLM) — kept out of the
+# default install so the backend boots fast. Install with:
+#   pip install -r requirements-ai.txt

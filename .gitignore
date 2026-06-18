@@ -1,0 +1,110 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+build/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment files — NEVER commit real secrets
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+mobile/.env
+backend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Firebase
+firebase-debug.log
+firestore-debug.log
+.firebase/
+backend/firebase_credentials.json
+backend/serviceAccountKey.json
+serviceAccountKey.json
+*serviceAccount*.json
+*service-account*.json
+# Firebase Admin SDK service-account keys (console download naming)
+firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
+**/firebase-adminsdk-*.json
+# Private keys / certificates (never commit)
+*.pem
+*.key
+
+# Trained ML models (large, regenerable via `python -m backend.ml.training.train_all`)
+backend/models/*.joblib
+# But keep the metrics + model cards (small, useful for reviewers)
+!backend/models/*.json
+!backend/models/MODEL_CARDS.md
+
+# Mobile / Expo
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/node_modules/
+
+# Local backend data
+backend/data/
+backend/*.db
+backend/*.sqlite
+
+# Test artifacts
+playwright-report/
+test-results/
+coverage/
+
+# Misc
+.cache/
+.parcel-cache/
+.tmp/
+*.tmp
+
+# Downloaded ML datasets (UCI HAR etc.) — not committed
+backend/ml/datasets/
+
+# Raw LLM fine-tuning output (Colab). The final, used adapter is bundled at
+# backend/models/medical_slm_adapter/ — these root copies are heavy duplicates.
+medical_slm/
+medical_slm_final/
+# Heavy / non-portable training checkpoint artifacts (anywhere)
+**/checkpoint-*/
+optimizer.pt
+scheduler.pt
+rng_state.pth
+scaler.pt
+trainer_state.json
+training_args.bin
+*.code-workspace

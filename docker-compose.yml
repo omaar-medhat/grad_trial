@@ -1,0 +1,60 @@
+# PulseGuard AI - one-command local stack
+# Usage:
+#   docker compose up --build
+#   open http://localhost:8080
+#
+# Notes:
+#   - The mobile Expo app is NOT containerized (see docs/deployment.md).
+#   - Firebase Admin credentials are optional; without them the backend uses
+#     an in-memory fallback store (data resets on container restart).
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: pulseguard-backend
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+      - LOG_LEVEL=INFO
+      - CORS_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
+      - LOAD_CHATBOT_MODEL=0
+      - DEFAULT_DEMO_UID=demo-user-001
+      # Mount a real serviceAccountKey.json next to docker-compose.yml to enable Firebase.
+      - FIREBASE_CREDENTIALS_PATH=/secrets/serviceAccountKey.json
+      - FIREBASE_DATABASE_URL=${FIREBASE_DATABASE_URL:-}
+    ports:
+      - "5000:5000"
+    volumes:
+      # Read-only mount; file is optional (warning logged if missing).
+      - ./secrets:/secrets:ro
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_DEMO_MODE: "false"
+    container_name: pulseguard-frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  simulator:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: pulseguard-simulator
+    depends_on:
+      - backend
+    profiles: ["demo"]   # only starts with `docker compose --profile demo up`
+    environment:
+      - PULSE_API=http://backend:5000
+      - PULSE_UID=demo-user-001
+    command: ["python", "-m", "backend.simulator", "--api", "http://backend:5000", "--uid", "demo-user-001", "--interval", "2"]
+    restart: unless-stopped

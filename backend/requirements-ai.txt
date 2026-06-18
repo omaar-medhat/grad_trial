@@ -1,0 +1,11 @@
+# Optional AI dependencies for the TinyLlama-1.1B chatbot.
+# The backend runs without these (rule-based fallback) so the demo always works.
+# Install separately:  pip install -r requirements-ai.txt
+torch>=2.1
+transformers>=4.41
+peft>=0.10
+accelerate>=0.30
+sentencepiece>=0.2.0
+# GPU-only: 4-bit NF4 quantization for the fine-tuned TinyLlama. The loader
+# uses it when CUDA is available and falls back to float32 on CPU.
+bitsandbytes>=0.43; platform_system == "Linux"
