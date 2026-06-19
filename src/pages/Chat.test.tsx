@@ -21,21 +21,21 @@ vi.mock("@/hooks/useLiveTelemetry", () => ({
 
 import Chat from "./Chat";
 
-describe("Chat page — single source of truth", () => {
+describe("Chat page — medical SLM endpoint", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("sends the exact live telemetry shown in the dashboard to /api/chat", async () => {
+  it("calls /ai/medical-slm with the question + live vitals as context, and renders the answer", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       json: async () => ({
         ok: true,
         data: {
-          response: "Your current heart rate is 83 bpm.",
-          source: "pulseguard_ai",
-          telemetry_origin: "client_live",
-          telemetry_source: "simulator",
-          latency_ms: 3,
+          answer: "Rest and hydrate. See a doctor if symptoms persist.",
+          model: "tinyllama-1.1b-chat-v1.0-lora-medical",
+          fallback: false,
+          demo_mode: false,
+          latency_ms: 18000,
         },
       }),
     });
@@ -43,19 +43,29 @@ describe("Chat page — single source of truth", () => {
 
     render(<Chat />);
     fireEvent.change(screen.getByLabelText("Message"), {
-      target: { value: "what is my heart rate right now" },
+      target: { value: "what should I do for a sore throat" },
     });
     fireEvent.click(screen.getByLabelText("Send"));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    // The chat must send the SAME object the dashboard is displaying.
-    expect(body.telemetry).toEqual(LIVE);
-    expect(body.telemetry.heart_rate).toBe(83);
 
-    // And it surfaces where the answer's data came from.
+    // Hits the medical SLM endpoint, not /api/chat.
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/ai\/medical-slm$/);
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.question).toBe("what should I do for a sore throat");
+    // Live vitals shown in the dashboard are passed as context.
+    expect(body.context).toContain("HR 83");
+    expect(body.context).toContain("SpO2 97");
+
+    // The generated answer is rendered, tagged with the model.
     await waitFor(() =>
-      expect(screen.getByText(/data: client_live/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/Rest and hydrate\. See a doctor if symptoms persist\./i),
+      ).toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/via tinyllama/i)).toBeInTheDocument(),
     );
   });
 });

@@ -193,6 +193,7 @@ def test_endpoint_success_path_with_mocked_model(client, monkeypatch):
     assert data["demo_mode"] is False
     assert data["answer"] == "Rest and hydrate."
     assert data["model"] == "test-model-lora-medical"
+    assert isinstance(data["latency_ms"], int)  # latency is reported
 
 
 # -----------------------------------------------------------------
@@ -291,3 +292,14 @@ def test_endpoint_degenerate_output_returns_safe_fallback(client, monkeypatch):
 def test_degenerate_error_is_runtime_error_subclass():
     # So the endpoint's generic failure handling also covers it if needed.
     assert issubclass(DegenerateGenerationError, RuntimeError)
+
+
+def test_warmup_is_noop_in_demo_mode(monkeypatch):
+    import backend.ml.medical_slm as slm
+
+    def _must_not_load():
+        raise AssertionError("warmup must not load the model in demo mode")
+
+    monkeypatch.setenv("MEDICAL_SLM_DEMO_MODE", "true")
+    monkeypatch.setattr(slm, "_load_model_once", _must_not_load)
+    assert slm.warmup() is False

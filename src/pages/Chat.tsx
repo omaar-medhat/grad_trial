@@ -19,7 +19,9 @@ interface Msg {
 }
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
-const CHAT_URL = `${API_BASE}/chat`;
+// The medical chatbot (real TinyLlama LoRA model) is served at the backend
+// root, not under /api — strip a trailing /api so both layouts resolve.
+const MEDICAL_SLM_URL = `${API_BASE.replace(/\/api$/, "")}/ai/medical-slm`;
 
 const SUGGESTIONS = [
   "How are my vitals right now?",
@@ -49,30 +51,27 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      const resp = await fetch(CHAT_URL, {
+      // Pass the live vitals as plain-language context so the medical model has
+      // some grounding (it takes {question, context}, not a telemetry object).
+      const context = live.data
+        ? `Current vitals — HR ${live.data.heart_rate} bpm, ` +
+          `SpO2 ${live.data.spo2}%, temp ${live.data.temperature_c}°C` +
+          (live.data.risk_level ? `, risk level ${live.data.risk_level}` : "")
+        : undefined;
+      const resp = await fetch(MEDICAL_SLM_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: messageText,
-          user_id: user?.id || "demo-user-001",
-          history: messages.slice(-6),
-          // Send the exact vitals the UI is showing so the assistant's numbers
-          // always match the dashboard/header (esp. in simulator/demo mode).
-          telemetry: live.data ?? undefined,
-        }),
+        body: JSON.stringify({ question: messageText, context }),
       });
       const envelope = await resp.json();
-      // Backend returns {ok, data: {response, source, latency_ms}}.
-      // Legacy {response} shape is tolerated for back-compat.
+      // Backend returns {ok, data: {answer, model, fallback, latency_ms}}.
       const payload = envelope?.ok && envelope?.data ? envelope.data : envelope;
-      const reply = payload?.response || "I couldn't generate a reply right now. Please try again.";
+      const reply = payload?.answer || "I couldn't generate a reply right now. Please try again.";
       setMessages(prev => [...prev, {
         role: "assistant",
         content: reply,
-        source: payload?.source,
+        source: payload?.model,
         latency_ms: payload?.latency_ms,
-        telemetryOrigin: payload?.telemetry_origin,
-        telemetrySource: payload?.telemetry_source,
       }]);
     } catch (e) {
       console.error("[chat] network error:", e);
@@ -136,7 +135,8 @@ const Chat = () => {
                 <MessageCircle className="mb-3 h-12 w-12 opacity-30" />
                 <p className="font-medium text-foreground">How can I help with your health?</p>
                 <p className="mt-1 text-xs max-w-xs">
-                  I read your live vitals and give safe, plain-language guidance. I am not a doctor.
+                  Powered by a local fine-tuned medical AI model, with your live
+                  vitals as context. Replies may take a few seconds. I am not a doctor.
                 </p>
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   {SUGGESTIONS.map(q => (
@@ -191,8 +191,11 @@ const Chat = () => {
 
             {isLoading && (
               <div className="mb-4 flex justify-start">
-                <div className="rounded-2xl rounded-bl-md bg-secondary px-4 py-3">
+                <div className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-secondary px-4 py-3">
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">
+                    Thinking… the local AI model runs on CPU and may take a few seconds.
+                  </span>
                 </div>
               </div>
             )}

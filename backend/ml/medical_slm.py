@@ -352,6 +352,14 @@ def _load_model_once():
                 "them with: pip install -r requirements-ai.txt"
             ) from exc
 
+        # Optional CPU thread override (defaults to torch's own choice).
+        threads = os.environ.get("MEDICAL_SLM_NUM_THREADS")
+        if threads:
+            try:
+                torch.set_num_threads(max(1, int(threads)))
+            except Exception:  # noqa: BLE001
+                pass
+
         is_phi3 = _is_phi3(base_model)
 
         logger.info(
@@ -419,15 +427,26 @@ def _load_model_once():
                 f"adapter='{adapter_dir}'): {exc}"
             ) from exc
 
-        # Phi-3 DynamicCache fix: disable the KV cache everywhere.
-        model.config.use_cache = False
+        # KV cache: OFF for Phi-3 (its remote modeling code hits a DynamicCache
+        # bug) but ON for Llama/TinyLlama — the cache avoids recomputing the
+        # whole sequence every step and makes CPU generation MUCH faster.
+        want_cache = not is_phi3
+        model.config.use_cache = want_cache
         if getattr(model, "generation_config", None) is not None:
-            model.generation_config.use_cache = False
+            model.generation_config.use_cache = want_cache
         model.eval()
 
         device = next(model.parameters()).device
-        _state.update(model=model, tokenizer=tokenizer, device=device)
-        logger.info("medical_slm: model ready on %s", device)
+        _state.update(
+            model=model,
+            tokenizer=tokenizer,
+            device=device,
+            use_cache=want_cache,
+            is_phi3=is_phi3,
+        )
+        logger.info(
+            "medical_slm: model ready on %s (kv_cache=%s)", device, want_cache
+        )
         return model, tokenizer, device
 
 
@@ -467,6 +486,22 @@ def _build_inputs(
     return enc, enc["input_ids"].shape[1]
 
 
+def warmup() -> bool:
+    """Eagerly load the model so the first user request isn't a cold start.
+
+    Safe to call from a background thread at startup — failures are logged, not
+    raised. Returns True if the model is loaded. No-op in demo mode (which never
+    loads a model)."""
+    if demo_mode_enabled():
+        return False
+    try:
+        _load_model_once()
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("medical_slm: warmup skipped (%s)", exc)
+        return False
+
+
 def generate_medical_answer(
     question: str, context: Optional[str] = None
 ) -> str:
@@ -489,7 +524,9 @@ def generate_medical_answer(
         tokenizer, question, context, is_phi3, device
     )
 
-    max_new_tokens = int(os.environ.get("MEDICAL_SLM_MAX_NEW_TOKENS", "256"))
+    # Smaller defaults keep CPU answers snappy; both are env-tunable.
+    max_new_tokens = int(os.environ.get("MEDICAL_SLM_MAX_NEW_TOKENS", "160"))
+    timeout_s = float(os.environ.get("MEDICAL_SLM_TIMEOUT_SECONDS", "20"))
     eos_id = tokenizer.eos_token_id
     pad_id = tokenizer.pad_token_id
     if pad_id is None:
@@ -502,7 +539,8 @@ def generate_medical_answer(
             do_sample=False,            # deterministic greedy (no temperature)
             repetition_penalty=1.2,
             no_repeat_ngram_size=3,
-            use_cache=False,            # Phi-3 DynamicCache fix
+            use_cache=_state.get("use_cache", False),  # ON for TinyLlama (fast)
+            max_time=timeout_s,         # hard wall-clock cap → never hangs
             pad_token_id=pad_id,
             eos_token_id=eos_id,
         )

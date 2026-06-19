@@ -249,6 +249,17 @@ def create_app() -> Flask:
     app.config["CHATBOT"] = chatbot
     app.config["ML"] = ml_models
 
+    # Optional: warm up the Medical SLM in the background so the first
+    # /ai/medical-slm request isn't a slow cold start (loading the model can
+    # take ~1-2 min on CPU). Off by default; set MEDICAL_SLM_PRELOAD=1 to enable.
+    # Skipped in demo mode (no model is ever loaded there).
+    if _bool_env("MEDICAL_SLM_PRELOAD", default=False):
+        import threading
+        from .ml import medical_slm as _slm
+        if not _slm.demo_mode_enabled():
+            logger.info("medical-slm: preloading model in background…")
+            threading.Thread(target=_slm.warmup, daemon=True).start()
+
     # --- Track the last active frontend user UID ---------------------
     # The sensor (Arduino) doesn't know the Firebase UID. We remember the
     # most recent UID seen from frontend requests (?uid=...) and use it
@@ -482,6 +493,11 @@ def create_app() -> Flask:
                 status=400,
             )
         from .ml import medical_slm as slm
+        started = time.time()
+
+        def _latency_ms() -> int:
+            return int((time.time() - started) * 1000)
+
         # Demo mode: skip loading the model entirely and answer instantly with
         # the deterministic safe fallback. Real TinyLlama CPU generation is too
         # slow for a live demo; set MEDICAL_SLM_DEMO_MODE=true for reliability.
@@ -491,6 +507,7 @@ def create_app() -> Flask:
                 "model": "safe-fallback",
                 "fallback": True,
                 "demo_mode": True,
+                "latency_ms": _latency_ms(),
             })
         try:
             answer = slm.generate_medical_answer(question, context)
@@ -499,6 +516,7 @@ def create_app() -> Flask:
                 "model": slm.model_label(),
                 "fallback": False,
                 "demo_mode": False,
+                "latency_ms": _latency_ms(),
             })
         except FileNotFoundError as exc:
             logger.warning("medical-slm: adapter unavailable (%s)", exc)
@@ -519,6 +537,7 @@ def create_app() -> Flask:
                 "model": "safe-fallback",
                 "fallback": True,
                 "demo_mode": False,
+                "latency_ms": _latency_ms(),
             })
         except Exception:  # noqa: BLE001
             # Model could not load or generate (e.g. CPU OOM / runtime issue).
@@ -532,6 +551,7 @@ def create_app() -> Flask:
                 "model": "safe-fallback",
                 "fallback": True,
                 "demo_mode": False,
+                "latency_ms": _latency_ms(),
             })
 
     @app.get("/api/metrics")
