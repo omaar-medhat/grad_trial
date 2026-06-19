@@ -59,7 +59,8 @@ Firebase records are normalized on read.
 
 ### 2. WESAD live compatibility
 - The WESAD stress model **is trained and integrated**
-  (`backend/models/wesad_stress_artifact.pkl`, `POST /api/ml/predict/stress`).
+  (`backend/models/wesad_vscode_model_package/`, DeepDNN,
+  `POST /api/ml/predict/stress`).
 - It is **not** used for live stress inference from the current Firebase schema.
 - **Reason:** the current Firebase / basic bracelet telemetry does **not**
   contain the required **252 WESAD features** (raw multi-channel wrist + chest

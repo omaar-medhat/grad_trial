@@ -8,10 +8,18 @@ gunicorn==22.0.0
 
 # Trained neural-network models (RiskClassifier, AnomalyAutoencoder, IntentClassifier).
 # All three live in backend/ml/ and are loaded at startup.
-scikit-learn>=1.5
-joblib>=1.4
+# scikit-learn is pinned to 1.6.1: the saved WESAD preprocessor (SimpleImputer +
+# RobustScaler in wesad_vscode_model_package) was fitted with 1.6.1 and fails to
+# unpickle on 1.9.x ("'SimpleImputer' object has no attribute '_fill_dtype'").
+scikit-learn==1.6.1
+joblib==1.4.2
 numpy>=1.26
+# pandas is used by the WESAD VS Code model package (inference.py) to build the
+# feature row passed to the model. Lightweight, so kept in the base install.
+pandas>=2.0
 
-# Optional heavy AI deps (TinyLlama-1.1B local LLM) — kept out of the
-# default install so the backend boots fast. Install with:
-#   pip install -r requirements-ai.txt
+# Optional heavy AI deps — kept out of the default install so the backend boots
+# fast. Install with: pip install -r requirements-ai.txt
+#   * TinyLlama-1.1B / Phi-3 medical LoRA chatbot (torch, transformers, peft …)
+#   * WESAD DeepDNN stress package (tensorflow, catboost, xgboost, lightgbm)
+

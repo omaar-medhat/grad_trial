@@ -112,7 +112,7 @@
       "support": 91.0
     }
   },
-  "train_seconds": 2.35,
+  "train_seconds": 1.92,
   "n_iterations": 43,
   "loss_curve_final": 0.008346269824641683
 }

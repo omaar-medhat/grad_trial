@@ -1,11 +1,26 @@
-# Optional AI dependencies for the TinyLlama-1.1B chatbot.
-# The backend runs without these (rule-based fallback) so the demo always works.
-# Install separately:  pip install -r requirements-ai.txt
+# Optional AI dependencies.
+# The backend runs without these (rule-based fallback + artifact-based stress
+# model) so the demo always works. Install separately:
+#   pip install -r requirements-ai.txt
+
+# --- LLM chatbot + Phi-3 medical LoRA adapter (backend/ml/medical_slm.py) ----
 torch>=2.1
 transformers>=4.41
 peft>=0.10
 accelerate>=0.30
+safetensors>=0.4
 sentencepiece>=0.2.0
-# GPU-only: 4-bit NF4 quantization for the fine-tuned TinyLlama. The loader
-# uses it when CUDA is available and falls back to float32 on CPU.
+# GPU-only: 4-bit NF4 quantization for the fine-tuned LLMs. The loaders use it
+# when CUDA is available and fall back to float32 on CPU. On Windows/CPU it is
+# not required and the pip wheel may fail to install — it is intentionally
+# gated to Linux so CPU installs stay clean.
 bitsandbytes>=0.43; platform_system == "Linux"
+
+# --- WESAD DeepDNN stress package (backend/models/wesad_vscode_model_package) -
+# numpy / pandas / scikit-learn / joblib come from the base requirements.txt.
+# tensorflow loads the bundled DeepDNN model; catboost/xgboost/lightgbm are
+# only needed if you switch model_spec.json to an ensemble variant.
+tensorflow>=2.13
+catboost>=1.2
+xgboost>=2.0
+lightgbm>=4.0

@@ -54,8 +54,8 @@ design so the system is safe and explainable even when the AI is removed.
 - 🧠 **Trained ML models** — risk classifier (MLP, 99% acc), anomaly
   autoencoder, intent classifier, an **activity** model on real **UCI HAR**
   (LinearSVM, 96.2%), and the **WESAD stress** model (15-model bake-off, best
-  **MLP**, acc 0.93 / ROC-AUC 0.95) served via `POST /api/ml/predict/stress`
-  (`backend/models/wesad_stress_artifact.pkl`).
+  **DeepDNN**, acc 0.93 / ROC-AUC 0.98) served via `POST /api/ml/predict/stress`
+  from the self-contained package `backend/models/wesad_vscode_model_package/`.
 - ⚠️ **Anomaly detection** — server-side deterministic rule engine (AHA/WHO
   reference ranges) + frontend ensemble for trend drift.
 - 🤖 **Healthcare chatbot** — a **fine-tuned TinyLlama-1.1B medical LoRA
@@ -175,6 +175,12 @@ docker compose --profile demo up --build
 ### Manual
 
 **Backend**
+
+> **Windows users:** use **Python 3.11** (a `(base)`/Python 3.13 env fails to
+> build `pydantic-core`). Follow [backend/SETUP_WINDOWS.md](backend/SETUP_WINDOWS.md)
+> for the exact `conda create -n gp-backend python=3.11` steps, then verify with
+> `python scripts/check_environment.py`.
+
 ```bash
 cd backend
 python -m venv .venv
@@ -330,7 +336,7 @@ the dashboard, chatbot, or ML. *Future work:* a one-time Firebase migration, or
 making the backend the **sole writer** so stored records are always canonical.
 
 **2. WESAD live compatibility.** The WESAD stress model is trained and
-integrated (`backend/models/wesad_stress_artifact.pkl`, served at
+integrated (`backend/models/wesad_vscode_model_package/`, DeepDNN, served at
 `POST /api/ml/predict/stress`). It is **not** used for live stress inference
 from the current Firebase schema, because that schema / a basic bracelet does
 **not** provide the required **252 WESAD features** (raw multi-channel wrist+

@@ -1,0 +1,1000 @@
+{
+  "project_name": "AI Health Monitoring Bracelet",
+  "task": "binary_stress_detection",
+  "dataset": "WESAD",
+  "feature_mode": "wrist_chest",
+  "split_mode": "group_split",
+  "best_model_name": "DeepDNN",
+  "best_threshold": 0.8799999999999996,
+  "window_sec": 60,
+  "step_sec": 15,
+  "label_mapping": {
+    "0": "non_stress",
+    "1": "stress"
+  },
+  "original_wesad_label_mapping": {
+    "1": "baseline",
+    "2": "stress",
+    "3": "amusement",
+    "4": "meditation"
+  },
+  "train_subjects": [
+    "S10",
+    "S11",
+    "S15",
+    "S3",
+    "S4",
+    "S6",
+    "S7",
+    "S9"
+  ],
+  "validation_subjects": [
+    "S16",
+    "S5",
+    "S8"
+  ],
+  "test_subjects": [
+    "S13",
+    "S14",
+    "S17",
+    "S2"
+  ],
+  "model_spec": {
+    "type": "keras_with_preprocessor",
+    "keras_model_path": "models/DeepDNN/DeepDNN.keras",
+    "preprocessor_path": "models/DeepDNN/DeepDNN_preprocessor.joblib",
+    "model_name": "DeepDNN"
+  },
+  "metrics_selection_by_validation": [
+    {
+      "model": "CatBoost",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.4099999999999998,
+      "accuracy": 0.8442153493699885,
+      "precision": 0.6098484848484849,
+      "recall": 0.8298969072164949,
+      "f1_score": 0.7030567685589519,
+      "roc_auc": 0.9224754414466393,
+      "confusion_matrix": [
+        [
+          576,
+          103
+        ],
+        [
+          33,
+          161
+        ]
+      ],
+      "best_threshold": 0.4099999999999998,
+      "selection_val_accuracy": 1.0,
+      "selection_val_f1_score": 1.0,
+      "selection_val_roc_auc": 1.0,
+      "selection_val_confusion_matrix": [
+        [
+          515,
+          0
+        ],
+        [
+          0,
+          145
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "SoftVotingML_Top5",
+      "model_type": "ensemble",
+      "stage": "test",
+      "threshold": 0.43999999999999984,
+      "accuracy": 0.8865979381443299,
+      "precision": 0.6938775510204082,
+      "recall": 0.8762886597938144,
+      "f1_score": 0.7744874715261959,
+      "roc_auc": 0.959522038170141,
+      "confusion_matrix": [
+        [
+          604,
+          75
+        ],
+        [
+          24,
+          170
+        ]
+      ],
+      "best_threshold": 0.43999999999999984,
+      "selection_val_accuracy": 1.0,
+      "selection_val_f1_score": 1.0,
+      "selection_val_roc_auc": 1.0,
+      "selection_val_confusion_matrix": [
+        [
+          515,
+          0
+        ],
+        [
+          0,
+          145
+        ]
+      ],
+      "ensemble_members": [
+        "CatBoost",
+        "XGBoost",
+        "LightGBM",
+        "ExtraTrees",
+        "RBFSVM"
+      ]
+    },
+    {
+      "model": "XGBoost",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.20999999999999996,
+      "accuracy": 0.872852233676976,
+      "precision": 0.6476868327402135,
+      "recall": 0.9381443298969072,
+      "f1_score": 0.7663157894736842,
+      "roc_auc": 0.9543294414162732,
+      "confusion_matrix": [
+        [
+          580,
+          99
+        ],
+        [
+          12,
+          182
+        ]
+      ],
+      "best_threshold": 0.20999999999999996,
+      "selection_val_accuracy": 0.9984848484848485,
+      "selection_val_f1_score": 0.9965635738831615,
+      "selection_val_roc_auc": 0.9999196518245732,
+      "selection_val_confusion_matrix": [
+        [
+          514,
+          1
+        ],
+        [
+          0,
+          145
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "LightGBM",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.2699999999999999,
+      "accuracy": 0.861397479954181,
+      "precision": 0.6477732793522267,
+      "recall": 0.8247422680412371,
+      "f1_score": 0.7256235827664399,
+      "roc_auc": 0.9402547712676314,
+      "confusion_matrix": [
+        [
+          592,
+          87
+        ],
+        [
+          34,
+          160
+        ]
+      ],
+      "best_threshold": 0.2699999999999999,
+      "selection_val_accuracy": 0.996969696969697,
+      "selection_val_f1_score": 0.9931506849315068,
+      "selection_val_roc_auc": 0.9998794777368597,
+      "selection_val_confusion_matrix": [
+        [
+          513,
+          2
+        ],
+        [
+          0,
+          145
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "ExtraTrees",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.34999999999999987,
+      "accuracy": 0.9026345933562429,
+      "precision": 0.755868544600939,
+      "recall": 0.8298969072164949,
+      "f1_score": 0.7911547911547911,
+      "roc_auc": 0.9672881587537768,
+      "confusion_matrix": [
+        [
+          627,
+          52
+        ],
+        [
+          33,
+          161
+        ]
+      ],
+      "best_threshold": 0.34999999999999987,
+      "selection_val_accuracy": 0.990909090909091,
+      "selection_val_f1_score": 0.9797297297297297,
+      "selection_val_roc_auc": 0.9976029460997656,
+      "selection_val_confusion_matrix": [
+        [
+          509,
+          6
+        ],
+        [
+          0,
+          145
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "DeepDNN",
+      "model_type": "deep_learning",
+      "stage": "test",
+      "threshold": 0.8799999999999996,
+      "accuracy": 0.9324169530355098,
+      "precision": 0.9299363057324841,
+      "recall": 0.7525773195876289,
+      "f1_score": 0.8319088319088319,
+      "roc_auc": 0.9774683813370179,
+      "confusion_matrix": [
+        [
+          668,
+          11
+        ],
+        [
+          48,
+          146
+        ]
+      ],
+      "best_threshold": 0.8799999999999996,
+      "selection_val_accuracy": 0.9787878787878788,
+      "selection_val_f1_score": 0.9533333333333334,
+      "selection_val_roc_auc": 0.997924338801473,
+      "selection_val_confusion_matrix": [
+        [
+          503,
+          12
+        ],
+        [
+          2,
+          143
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "RBFSVM",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.8899999999999996,
+      "accuracy": 0.9278350515463918,
+      "precision": 0.8742857142857143,
+      "recall": 0.788659793814433,
+      "f1_score": 0.8292682926829268,
+      "roc_auc": 0.9625434614275086,
+      "confusion_matrix": [
+        [
+          657,
+          22
+        ],
+        [
+          41,
+          153
+        ]
+      ],
+      "best_threshold": 0.8899999999999996,
+      "selection_val_accuracy": 0.9681818181818181,
+      "selection_val_f1_score": 0.9283276450511946,
+      "selection_val_roc_auc": 0.995848677602946,
+      "selection_val_confusion_matrix": [
+        [
+          503,
+          12
+        ],
+        [
+          9,
+          136
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "MLP",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.7999999999999996,
+      "accuracy": 0.872852233676976,
+      "precision": 0.9278350515463918,
+      "recall": 0.4639175257731959,
+      "f1_score": 0.6185567010309279,
+      "roc_auc": 0.9130467789198791,
+      "confusion_matrix": [
+        [
+          672,
+          7
+        ],
+        [
+          104,
+          90
+        ]
+      ],
+      "best_threshold": 0.7999999999999996,
+      "selection_val_accuracy": 0.9606060606060606,
+      "selection_val_f1_score": 0.9097222222222222,
+      "selection_val_roc_auc": 0.9840241044526281,
+      "selection_val_confusion_matrix": [
+        [
+          503,
+          12
+        ],
+        [
+          14,
+          131
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "LogisticRegression",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.8899999999999996,
+      "accuracy": 0.8762886597938144,
+      "precision": 0.6524822695035462,
+      "recall": 0.9484536082474226,
+      "f1_score": 0.773109243697479,
+      "roc_auc": 0.9691177140427857,
+      "confusion_matrix": [
+        [
+          581,
+          98
+        ],
+        [
+          10,
+          184
+        ]
+      ],
+      "best_threshold": 0.8899999999999996,
+      "selection_val_accuracy": 0.9545454545454546,
+      "selection_val_f1_score": 0.9044585987261147,
+      "selection_val_roc_auc": 0.9977234683629059,
+      "selection_val_confusion_matrix": [
+        [
+          488,
+          27
+        ],
+        [
+          3,
+          142
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "GRU",
+      "model_type": "deep_learning",
+      "stage": "test",
+      "threshold": 0.48999999999999977,
+      "accuracy": 0.6804123711340206,
+      "precision": 0.30414746543778803,
+      "recall": 0.3402061855670103,
+      "f1_score": 0.32116788321167883,
+      "roc_auc": 0.704788728117456,
+      "confusion_matrix": [
+        [
+          528,
+          151
+        ],
+        [
+          128,
+          66
+        ]
+      ],
+      "best_threshold": 0.48999999999999977,
+      "selection_val_accuracy": 0.9393939393939394,
+      "selection_val_f1_score": 0.8591549295774648,
+      "selection_val_roc_auc": 0.9610043521928356,
+      "selection_val_confusion_matrix": [
+        [
+          498,
+          17
+        ],
+        [
+          23,
+          122
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "TabularCNN",
+      "model_type": "deep_learning",
+      "stage": "test",
+      "threshold": 0.5799999999999997,
+      "accuracy": 0.8957617411225659,
+      "precision": 0.8652482269503546,
+      "recall": 0.6288659793814433,
+      "f1_score": 0.7283582089552239,
+      "roc_auc": 0.8686288204302871,
+      "confusion_matrix": [
+        [
+          660,
+          19
+        ],
+        [
+          72,
+          122
+        ]
+      ],
+      "best_threshold": 0.5799999999999997,
+      "selection_val_accuracy": 0.9151515151515152,
+      "selection_val_f1_score": 0.8082191780821918,
+      "selection_val_roc_auc": 0.9557147639772348,
+      "selection_val_confusion_matrix": [
+        [
+          486,
+          29
+        ],
+        [
+          27,
+          118
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "BiLSTM",
+      "model_type": "deep_learning",
+      "stage": "test",
+      "threshold": 0.6899999999999997,
+      "accuracy": 0.7915234822451317,
+      "precision": 0.536144578313253,
+      "recall": 0.4587628865979381,
+      "f1_score": 0.49444444444444446,
+      "roc_auc": 0.7832318600731824,
+      "confusion_matrix": [
+        [
+          602,
+          77
+        ],
+        [
+          105,
+          89
+        ]
+      ],
+      "best_threshold": 0.6899999999999997,
+      "selection_val_accuracy": 0.9075757575757576,
+      "selection_val_f1_score": 0.7932203389830509,
+      "selection_val_roc_auc": 0.9429527954469367,
+      "selection_val_confusion_matrix": [
+        [
+          482,
+          33
+        ],
+        [
+          28,
+          117
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "TransformerLite",
+      "model_type": "deep_learning",
+      "stage": "test",
+      "threshold": 0.7399999999999997,
+      "accuracy": 0.7709049255441008,
+      "precision": 0.4835164835164835,
+      "recall": 0.4536082474226804,
+      "f1_score": 0.46808510638297873,
+      "roc_auc": 0.7350561013011858,
+      "confusion_matrix": [
+        [
+          585,
+          94
+        ],
+        [
+          106,
+          88
+        ]
+      ],
+      "best_threshold": 0.7399999999999997,
+      "selection_val_accuracy": 0.8257575757575758,
+      "selection_val_f1_score": 0.5593869731800766,
+      "selection_val_roc_auc": 0.8455440241044525,
+      "selection_val_confusion_matrix": [
+        [
+          472,
+          43
+        ],
+        [
+          72,
+          73
+        ]
+      ],
+      "ensemble_members": NaN
+    }
+  ],
+  "metrics_test_ranking": [
+    {
+      "model": "DeepDNN",
+      "model_type": "deep_learning",
+      "stage": "test",
+      "threshold": 0.8799999999999996,
+      "accuracy": 0.9324169530355098,
+      "precision": 0.9299363057324841,
+      "recall": 0.7525773195876289,
+      "f1_score": 0.8319088319088319,
+      "roc_auc": 0.9774683813370179,
+      "confusion_matrix": [
+        [
+          668,
+          11
+        ],
+        [
+          48,
+          146
+        ]
+      ],
+      "best_threshold": 0.8799999999999996,
+      "selection_val_accuracy": 0.9787878787878788,
+      "selection_val_f1_score": 0.9533333333333334,
+      "selection_val_roc_auc": 0.997924338801473,
+      "selection_val_confusion_matrix": [
+        [
+          503,
+          12
+        ],
+        [
+          2,
+          143
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "RBFSVM",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.8899999999999996,
+      "accuracy": 0.9278350515463918,
+      "precision": 0.8742857142857143,
+      "recall": 0.788659793814433,
+      "f1_score": 0.8292682926829268,
+      "roc_auc": 0.9625434614275086,
+      "confusion_matrix": [
+        [
+          657,
+          22
+        ],
+        [
+          41,
+          153
+        ]
+      ],
+      "best_threshold": 0.8899999999999996,
+      "selection_val_accuracy": 0.9681818181818181,
+      "selection_val_f1_score": 0.9283276450511946,
+      "selection_val_roc_auc": 0.995848677602946,
+      "selection_val_confusion_matrix": [
+        [
+          503,
+          12
+        ],
+        [
+          9,
+          136
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "ExtraTrees",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.34999999999999987,
+      "accuracy": 0.9026345933562429,
+      "precision": 0.755868544600939,
+      "recall": 0.8298969072164949,
+      "f1_score": 0.7911547911547911,
+      "roc_auc": 0.9672881587537768,
+      "confusion_matrix": [
+        [
+          627,
+          52
+        ],
+        [
+          33,
+          161
+        ]
+      ],
+      "best_threshold": 0.34999999999999987,
+      "selection_val_accuracy": 0.990909090909091,
+      "selection_val_f1_score": 0.9797297297297297,
+      "selection_val_roc_auc": 0.9976029460997656,
+      "selection_val_confusion_matrix": [
+        [
+          509,
+          6
+        ],
+        [
+          0,
+          145
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "TabularCNN",
+      "model_type": "deep_learning",
+      "stage": "test",
+      "threshold": 0.5799999999999997,
+      "accuracy": 0.8957617411225659,
+      "precision": 0.8652482269503546,
+      "recall": 0.6288659793814433,
+      "f1_score": 0.7283582089552239,
+      "roc_auc": 0.8686288204302871,
+      "confusion_matrix": [
+        [
+          660,
+          19
+        ],
+        [
+          72,
+          122
+        ]
+      ],
+      "best_threshold": 0.5799999999999997,
+      "selection_val_accuracy": 0.9151515151515152,
+      "selection_val_f1_score": 0.8082191780821918,
+      "selection_val_roc_auc": 0.9557147639772348,
+      "selection_val_confusion_matrix": [
+        [
+          486,
+          29
+        ],
+        [
+          27,
+          118
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "SoftVotingML_Top5",
+      "model_type": "ensemble",
+      "stage": "test",
+      "threshold": 0.43999999999999984,
+      "accuracy": 0.8865979381443299,
+      "precision": 0.6938775510204082,
+      "recall": 0.8762886597938144,
+      "f1_score": 0.7744874715261959,
+      "roc_auc": 0.959522038170141,
+      "confusion_matrix": [
+        [
+          604,
+          75
+        ],
+        [
+          24,
+          170
+        ]
+      ],
+      "best_threshold": 0.43999999999999984,
+      "selection_val_accuracy": 1.0,
+      "selection_val_f1_score": 1.0,
+      "selection_val_roc_auc": 1.0,
+      "selection_val_confusion_matrix": [
+        [
+          515,
+          0
+        ],
+        [
+          0,
+          145
+        ]
+      ],
+      "ensemble_members": [
+        "CatBoost",
+        "XGBoost",
+        "LightGBM",
+        "ExtraTrees",
+        "RBFSVM"
+      ]
+    },
+    {
+      "model": "LogisticRegression",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.8899999999999996,
+      "accuracy": 0.8762886597938144,
+      "precision": 0.6524822695035462,
+      "recall": 0.9484536082474226,
+      "f1_score": 0.773109243697479,
+      "roc_auc": 0.9691177140427857,
+      "confusion_matrix": [
+        [
+          581,
+          98
+        ],
+        [
+          10,
+          184
+        ]
+      ],
+      "best_threshold": 0.8899999999999996,
+      "selection_val_accuracy": 0.9545454545454546,
+      "selection_val_f1_score": 0.9044585987261147,
+      "selection_val_roc_auc": 0.9977234683629059,
+      "selection_val_confusion_matrix": [
+        [
+          488,
+          27
+        ],
+        [
+          3,
+          142
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "XGBoost",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.20999999999999996,
+      "accuracy": 0.872852233676976,
+      "precision": 0.6476868327402135,
+      "recall": 0.9381443298969072,
+      "f1_score": 0.7663157894736842,
+      "roc_auc": 0.9543294414162732,
+      "confusion_matrix": [
+        [
+          580,
+          99
+        ],
+        [
+          12,
+          182
+        ]
+      ],
+      "best_threshold": 0.20999999999999996,
+      "selection_val_accuracy": 0.9984848484848485,
+      "selection_val_f1_score": 0.9965635738831615,
+      "selection_val_roc_auc": 0.9999196518245732,
+      "selection_val_confusion_matrix": [
+        [
+          514,
+          1
+        ],
+        [
+          0,
+          145
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "MLP",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.7999999999999996,
+      "accuracy": 0.872852233676976,
+      "precision": 0.9278350515463918,
+      "recall": 0.4639175257731959,
+      "f1_score": 0.6185567010309279,
+      "roc_auc": 0.9130467789198791,
+      "confusion_matrix": [
+        [
+          672,
+          7
+        ],
+        [
+          104,
+          90
+        ]
+      ],
+      "best_threshold": 0.7999999999999996,
+      "selection_val_accuracy": 0.9606060606060606,
+      "selection_val_f1_score": 0.9097222222222222,
+      "selection_val_roc_auc": 0.9840241044526281,
+      "selection_val_confusion_matrix": [
+        [
+          503,
+          12
+        ],
+        [
+          14,
+          131
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "LightGBM",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.2699999999999999,
+      "accuracy": 0.861397479954181,
+      "precision": 0.6477732793522267,
+      "recall": 0.8247422680412371,
+      "f1_score": 0.7256235827664399,
+      "roc_auc": 0.9402547712676314,
+      "confusion_matrix": [
+        [
+          592,
+          87
+        ],
+        [
+          34,
+          160
+        ]
+      ],
+      "best_threshold": 0.2699999999999999,
+      "selection_val_accuracy": 0.996969696969697,
+      "selection_val_f1_score": 0.9931506849315068,
+      "selection_val_roc_auc": 0.9998794777368597,
+      "selection_val_confusion_matrix": [
+        [
+          513,
+          2
+        ],
+        [
+          0,
+          145
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "CatBoost",
+      "model_type": "machine_learning",
+      "stage": "test",
+      "threshold": 0.4099999999999998,
+      "accuracy": 0.8442153493699885,
+      "precision": 0.6098484848484849,
+      "recall": 0.8298969072164949,
+      "f1_score": 0.7030567685589519,
+      "roc_auc": 0.9224754414466393,
+      "confusion_matrix": [
+        [
+          576,
+          103
+        ],
+        [
+          33,
+          161
+        ]
+      ],
+      "best_threshold": 0.4099999999999998,
+      "selection_val_accuracy": 1.0,
+      "selection_val_f1_score": 1.0,
+      "selection_val_roc_auc": 1.0,
+      "selection_val_confusion_matrix": [
+        [
+          515,
+          0
+        ],
+        [
+          0,
+          145
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "BiLSTM",
+      "model_type": "deep_learning",
+      "stage": "test",
+      "threshold": 0.6899999999999997,
+      "accuracy": 0.7915234822451317,
+      "precision": 0.536144578313253,
+      "recall": 0.4587628865979381,
+      "f1_score": 0.49444444444444446,
+      "roc_auc": 0.7832318600731824,
+      "confusion_matrix": [
+        [
+          602,
+          77
+        ],
+        [
+          105,
+          89
+        ]
+      ],
+      "best_threshold": 0.6899999999999997,
+      "selection_val_accuracy": 0.9075757575757576,
+      "selection_val_f1_score": 0.7932203389830509,
+      "selection_val_roc_auc": 0.9429527954469367,
+      "selection_val_confusion_matrix": [
+        [
+          482,
+          33
+        ],
+        [
+          28,
+          117
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "TransformerLite",
+      "model_type": "deep_learning",
+      "stage": "test",
+      "threshold": 0.7399999999999997,
+      "accuracy": 0.7709049255441008,
+      "precision": 0.4835164835164835,
+      "recall": 0.4536082474226804,
+      "f1_score": 0.46808510638297873,
+      "roc_auc": 0.7350561013011858,
+      "confusion_matrix": [
+        [
+          585,
+          94
+        ],
+        [
+          106,
+          88
+        ]
+      ],
+      "best_threshold": 0.7399999999999997,
+      "selection_val_accuracy": 0.8257575757575758,
+      "selection_val_f1_score": 0.5593869731800766,
+      "selection_val_roc_auc": 0.8455440241044525,
+      "selection_val_confusion_matrix": [
+        [
+          472,
+          43
+        ],
+        [
+          72,
+          73
+        ]
+      ],
+      "ensemble_members": NaN
+    },
+    {
+      "model": "GRU",
+      "model_type": "deep_learning",
+      "stage": "test",
+      "threshold": 0.48999999999999977,
+      "accuracy": 0.6804123711340206,
+      "precision": 0.30414746543778803,
+      "recall": 0.3402061855670103,
+      "f1_score": 0.32116788321167883,
+      "roc_auc": 0.704788728117456,
+      "confusion_matrix": [
+        [
+          528,
+          151
+        ],
+        [
+          128,
+          66
+        ]
+      ],
+      "best_threshold": 0.48999999999999977,
+      "selection_val_accuracy": 0.9393939393939394,
+      "selection_val_f1_score": 0.8591549295774648,
+      "selection_val_roc_auc": 0.9610043521928356,
+      "selection_val_confusion_matrix": [
+        [
+          498,
+          17
+        ],
+        [
+          23,
+          122
+        ]
+      ],
+      "ensemble_members": NaN
+    }
+  ]
+}

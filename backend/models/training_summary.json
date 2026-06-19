@@ -1,20 +1,20 @@
 {
-  "trained_at": "2026-05-26T16:58:58+0200",
-  "total_seconds": 22.34,
+  "trained_at": "2026-06-19T09:27:30+0200",
+  "total_seconds": 20.4,
   "models": {
     "risk_classifier": {
-      "test_accuracy": 0.9914,
-      "train_seconds": 11.96,
+      "test_accuracy": 0.9924,
+      "train_seconds": 10.74,
       "n_iterations": 46
     },
     "anomaly_autoencoder": {
       "auc": 0.7996,
-      "train_seconds": 5.81,
+      "train_seconds": 5.03,
       "n_iterations": 141
     },
     "intent_classifier": {
       "test_accuracy": 0.989,
-      "train_seconds": 2.35,
+      "train_seconds": 1.92,
       "n_iterations": 43
     }
   }

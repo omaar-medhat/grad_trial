@@ -1,0 +1,16 @@
+{
+    "base_model": "microsoft/Phi-3-mini-4k-instruct",
+    "adapter_type": "LoRA / PEFT",
+    "training_dataset": "ruslanmv/HealthCareMagic-100k",
+    "train_size": 5000,
+    "eval_size": 500,
+    "max_steps": 200,
+    "max_length": 384,
+    "lora_r": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "target_modules": [
+        "qkv_proj",
+        "o_proj"
+    ]
+}

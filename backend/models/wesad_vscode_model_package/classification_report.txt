@@ -1,0 +1,11 @@
+Model saved for VS Code deployment: DeepDNN
+Threshold: 0.8799999999999996
+
+              precision    recall  f1-score   support
+
+  non_stress       0.93      0.98      0.96       679
+      stress       0.93      0.75      0.83       194
+
+    accuracy                           0.93       873
+   macro avg       0.93      0.87      0.89       873
+weighted avg       0.93      0.93      0.93       873

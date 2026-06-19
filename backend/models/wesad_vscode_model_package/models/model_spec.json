@@ -1,0 +1,6 @@
+{
+  "type": "keras_with_preprocessor",
+  "keras_model_path": "models/DeepDNN/DeepDNN.keras",
+  "preprocessor_path": "models/DeepDNN/DeepDNN_preprocessor.joblib",
+  "model_name": "DeepDNN"
+}

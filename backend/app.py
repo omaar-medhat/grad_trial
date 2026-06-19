@@ -454,9 +454,85 @@ def create_app() -> Flask:
             },
             "model_name": pred.model_name,
             "model_type": "stress",
-            "source": "wesad_artifact",
+            "source": "wesad_vscode_model_package",
             "latency_ms": pred.latency_ms,
         })
+
+    @app.post("/ai/medical-slm")
+    def medical_slm():
+        """Answer a medical question with the local medical LoRA adapter
+        (default: lightweight TinyLlama; Phi-3 optional via
+        MEDICAL_SLM_ADAPTER_PATH). Body: {"question": "...", "context": "..."}.
+        Returns {"answer", "model", "fallback"}.
+
+        Loading the model is heavy and lazy (first call only). Behaviour:
+          * empty question            -> 400 INVALID_INPUT
+          * adapter files missing     -> 503 MODEL_UNAVAILABLE
+          * load/generation failure   -> 200 with a SAFE deterministic fallback
+                                         answer (fallback: true), so the demo
+                                         stays usable on weak/CPU-only hardware
+        Internal errors are logged but never surfaced as stack traces."""
+        body = request.get_json(silent=True) or {}
+        question = (body.get("question") or "").strip()
+        context = body.get("context")
+        if not question:
+            return err(
+                "INVALID_INPUT",
+                "Provide a non-empty 'question'.",
+                status=400,
+            )
+        from .ml import medical_slm as slm
+        # Demo mode: skip loading the model entirely and answer instantly with
+        # the deterministic safe fallback. Real TinyLlama CPU generation is too
+        # slow for a live demo; set MEDICAL_SLM_DEMO_MODE=true for reliability.
+        if slm.demo_mode_enabled():
+            return ok({
+                "answer": slm.safe_fallback_answer(),
+                "model": "safe-fallback",
+                "fallback": True,
+                "demo_mode": True,
+            })
+        try:
+            answer = slm.generate_medical_answer(question, context)
+            return ok({
+                "answer": answer,
+                "model": slm.model_label(),
+                "fallback": False,
+                "demo_mode": False,
+            })
+        except FileNotFoundError as exc:
+            logger.warning("medical-slm: adapter unavailable (%s)", exc)
+            return err(
+                "MODEL_UNAVAILABLE",
+                "The medical model adapter is not available on this server.",
+                status=503,
+            )
+        except slm.DegenerateGenerationError:
+            # The model produced empty/repetitive garbage (e.g. "Rome Rome…").
+            # Hide it behind the safe fallback. Expected control flow → warning,
+            # not a traceback.
+            logger.warning(
+                "medical-slm: degenerate_generation — returning safe fallback"
+            )
+            return ok({
+                "answer": slm.safe_fallback_answer(),
+                "model": "safe-fallback",
+                "fallback": True,
+                "demo_mode": False,
+            })
+        except Exception:  # noqa: BLE001
+            # Model could not load or generate (e.g. CPU OOM / runtime issue).
+            # Keep the endpoint demo-ready with a safe deterministic answer
+            # instead of a generic 500. The full traceback is logged only.
+            logger.exception(
+                "medical-slm: generation failed — returning safe fallback"
+            )
+            return ok({
+                "answer": slm.safe_fallback_answer(),
+                "model": "safe-fallback",
+                "fallback": True,
+                "demo_mode": False,
+            })
 
     @app.get("/api/metrics")
     def metrics():

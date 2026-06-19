@@ -185,11 +185,10 @@ Stable column order; one row per reading. Max `limit` is 5000.
 
 ## `POST /api/ml/predict/stress`
 
-Runs the **WESAD stress model** loaded from
-`backend/models/wesad_stress_artifact.pkl` (best of a 15-model bake-off on the
-WESAD dataset with a leave-subjects-out split — see
-`backend/models/wesad_stress_comparison.json`; best **MLP**, accuracy 0.93,
-ROC-AUC 0.95). It is a **binary** classifier: `non_stress` / `stress`.
+Runs the **WESAD stress model** loaded from the self-contained package
+`backend/models/wesad_vscode_model_package/` (best of a 15-model bake-off on the
+WESAD dataset with a group/leave-subjects split; best **DeepDNN**, accuracy
+0.93, ROC-AUC 0.98). It is a **binary** classifier: `non_stress` / `stress`.
 
 The model expects the **252 WESAD window features** (wrist BVP/EDA/TEMP/ACC +
 chest ECG/EMG/EDA/ACC, 60 s windows). Pass them as a `features` object (keyed by

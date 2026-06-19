@@ -9,8 +9,8 @@ data and is loaded by the Flask backend at startup.
 * **Task**: predict patient risk level (`normal` / `warning` / `high`) from 6 vitals.
 * **Architecture**: `StandardScaler → MLP(64-32-16, ReLU) → Softmax(3)`. Loss: cross-entropy. Optimizer: Adam.
 * **Training data**: 51000 synthetic samples drawn from 11 clinical scenarios; labels distilled from the production rule engine (knowledge-distillation setup).
-* **Test accuracy**: **0.9914** on 9000 held-out samples.
-* **Trained in**: 11.96s, 46 epochs (early stopping, patience 10).
+* **Test accuracy**: **0.9924** on 9000 held-out samples.
+* **Trained in**: 10.74s, 46 epochs (early stopping, patience 10).
 * **Where used**: every `POST /api/telemetry` ingest returns `analysis.ml_risk = {label, confidence, probabilities}` alongside the rule-engine output.
 
 ## 2. Anomaly Autoencoder
@@ -19,8 +19,8 @@ data and is loaded by the Flask backend at startup.
 * **Architecture**: bottleneck `MLPRegressor(6→4→2→4→6, ReLU)`. Trained as an autoencoder (input = target). Loss: MSE.
 * **Training data**: 20000 samples drawn ONLY from `resting`/`light_walk`/`sleep` scenarios — so the network has never seen abnormal data.
 * **Detection threshold**: 99th percentile of training reconstruction error = **1.244781**.
-* **Evaluation**: AUC for separating normal vs abnormal (warning + high) readings = **0.7996**. Recall on abnormal at the chosen threshold = **0.5667**.
-* **Trained in**: 5.81s, 141 epochs.
+* **Evaluation**: AUC for separating normal vs abnormal (warning + high) readings = **0.7996**. Recall on abnormal at the chosen threshold = **0.5668**.
+* **Trained in**: 5.03s, 141 epochs.
 * **Where used**: every `POST /api/telemetry` ingest returns `analysis.ml_anomaly = {score, is_anomaly}`.
 
 ## 3. Intent Classifier
@@ -29,7 +29,7 @@ data and is loaded by the Flask backend at startup.
 * **Architecture**: `TF-IDF (word 1-2 + char 2-4) → MLP(64-32, ReLU) → Softmax(13)`. Loss: cross-entropy. Optimizer: Adam.
 * **Training data**: 515 hand-authored + augmented examples across 13 intents.
 * **Test accuracy**: **0.989** on 91 held-out examples.
-* **Trained in**: 2.35s, 43 epochs.
+* **Trained in**: 1.92s, 43 epochs.
 * **Where used**: every `POST /api/chat` first asks the trained classifier for an intent. If the classifier's confidence is low (< 0.45) or the regex NLU detects an emergency keyword, the regex NLU wins. This is a "neural with safety override" hybrid.
 
 ## Reproducibility
