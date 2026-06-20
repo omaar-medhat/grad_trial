@@ -55,6 +55,10 @@ def test_stress_classifier_stub_when_package_missing(tmp_path, monkeypatch):
 
 
 @needs_wesad_pkg
+@pytest.mark.skipif(
+    not _tensorflow_available(),
+    reason="TensorFlow not installed; WESAD package reports unavailable.",
+)
 def test_stress_classifier_available_when_package_present():
     clf = StressClassifier.load_or_stub()
     assert clf.status == "trained"
