@@ -207,6 +207,13 @@ class StressClassifier:
             )
             logger.warning("StressClassifier: %s", msg)
             return cls(error=msg)
+        if importlib.util.find_spec("tensorflow") is None:
+            msg = (
+                "TensorFlow is not installed; WESAD Keras model unavailable. "
+                "Install tensorflow to enable stress prediction."
+            )
+            logger.warning("StressClassifier: %s", msg)
+            return cls(error=msg)
         logger.info(
             "StressClassifier: WESAD package available at %s",
             WESAD_PACKAGE_DIR,
