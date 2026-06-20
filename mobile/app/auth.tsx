@@ -1,19 +1,31 @@
 import { useState } from "react";
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Pressable,
-  StyleSheet, Text, TextInput, View,
+  ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/hooks/useAuth";
 import { api, apiBaseUrl, hasAuthToken } from "@/lib/api";
-import { colors } from "@/config";
+import { colors, config } from "@/config";
+
+const GENDERS = ["male", "female", "other"] as const;
+const ACTIVITIES = [
+  "sedentary", "light", "moderate", "active", "very_active",
+] as const;
 
 export default function AuthScreen() {
-  const { signIn, signUp, resetPassword, signInDemo, firebaseEnabled } = useAuth();
+  const { user, signIn, signUp, resetPassword, signInDemo, firebaseEnabled } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup" | "reset">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Signup profile fields — collected on the SAME screen as email/password.
+  const [name, setName] = useState("");
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState("");
+  const [heightCm, setHeightCm] = useState("");
+  const [weightKg, setWeightKg] = useState("");
+  const [activity, setActivity] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -28,6 +40,16 @@ export default function AuthScreen() {
     if (mode !== "reset" && password.length < 6) {
       setError("Password must be at least 6 characters.");
       return;
+    }
+    // Validate the profile fields BEFORE creating the Firebase Auth account, so
+    // a half-filled signup never creates an orphan auth user.
+    if (mode === "signup") {
+      if (!name.trim()) { setError("Please enter your name."); return; }
+      if (!age.trim() || Number.isNaN(Number(age))) { setError("Enter a valid age."); return; }
+      if (!gender) { setError("Please select your gender."); return; }
+      if (!heightCm.trim() || Number.isNaN(Number(heightCm))) { setError("Enter a valid height (cm)."); return; }
+      if (!weightKg.trim() || Number.isNaN(Number(weightKg))) { setError("Enter a valid weight (kg)."); return; }
+      if (!activity) { setError("Please select your activity level."); return; }
     }
     setSubmitting(true);
     let res: { ok: boolean; error?: string };
@@ -54,38 +76,78 @@ export default function AuthScreen() {
     // /users/{uid}/profile + goals (idempotent; uses the verified token uid).
     // We do NOT navigate until bootstrap returns ok:true.
     setSubmitting(true);
+    
     // Safe debug (no token/secret): where we're calling + whether a token is
     // attached. Helps diagnose wrong API URL / missing token in the field.
     const tokenAttached = await hasAuthToken();
     if (__DEV__) {
+      // Safe dev diagnostics — never logs the token itself.
       // eslint-disable-next-line no-console
       console.log(
-        `[bootstrap] ${mode} ok → POST ${apiBaseUrl()}/api/auth/bootstrap ` +
-        `(Authorization attached: ${tokenAttached})`,
+        `[auth.${mode}] Firebase Auth succeeded. Calling bootstrap...\\n` +
+        `API Base URL: ${apiBaseUrl()}\\n` +
+        `Firebase Project ID: ${config.firebase.projectId || "(unset)"}\\n` +
+        `Token Available: ${tokenAttached}\\n` +
+        `Current User: ${user?.email || "(unknown)"}`,
       );
     }
-    const bs = await api.bootstrap();
+    
+    // Call bootstrap to ensure profile/goals exist in RTDB. On signup we send
+    // the collected profile so the backend saves it (one-screen signup) and
+    // returns profile_complete=true → straight to dashboard, no second page.
+    const bs = mode === "signup"
+      ? await api.bootstrap({
+          name: name.trim(),
+          age: Number(age),
+          gender,
+          height_cm: Number(heightCm),
+          weight_kg: Number(weightKg),
+          activity,
+        })
+      : await api.bootstrap();
     setSubmitting(false);
+    
     if (__DEV__) {
       // eslint-disable-next-line no-console
-      console.log("[bootstrap] result:", bs.ok
-        ? {
-            ok: true, uid: bs.data.uid,
-            created_profile: bs.data.created_profile,
-            created_goals: bs.data.created_goals,
-            write_backend: bs.data.write_backend,
-            write_ok: bs.data.write_ok,
-          }
-        : { ok: false, error: bs.error });
+      console.log(
+        `[auth.bootstrap] response:`,
+        bs.ok
+          ? {
+              ok: true,
+              uid: bs.data.uid,
+              firebase_mode: bs.data.firebase_mode,
+              write_backend: bs.data.write_backend,
+              write_ok: bs.data.write_ok,
+              created_profile: bs.data.created_profile,
+              created_goals: bs.data.created_goals,
+              needs_onboarding: bs.data.needs_onboarding,
+            }
+          : {
+              ok: false,
+              code: bs.error?.code,
+              message: bs.error?.message,
+            },
+      );
     }
+    
     if (!bs.ok) {
+      // Auth succeeded but bootstrap failed. This is critical — do NOT
+      // navigate and do NOT show onboarding. Surface the error clearly.
+      const msg = bs.error?.message || "Unknown error";
+      const code = bs.error?.code || "";
       setError(
-        "Account created, but profile initialization failed. " +
-        (bs.error.message || "Please check your connection and try again."),
+        code === "NETWORK_ERROR"
+          ? `Network error during profile setup. Please check your connection and try again. (${msg})`
+          : `Account created, but profile initialization failed. Please restart the app or contact support. (${msg})`,
       );
       return;
     }
-    router.replace("/(tabs)/dashboard");
+    
+    // Bootstrap succeeded. Only now do we navigate based on onboarding needs.
+    // Never navigate without a confirmed bootstrap ok:true.
+    router.replace(
+      bs.data.needs_onboarding ? "/onboarding" : "/(tabs)/dashboard",
+    );
   };
 
   const useDemo = () => {
@@ -98,6 +160,10 @@ export default function AuthScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.root}
     >
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={styles.card}>
         <Text style={styles.title}>PulseGuard AI</Text>
         <Text style={styles.subtitle}>
@@ -138,6 +204,51 @@ export default function AuthScreen() {
               placeholderTextColor={colors.textMuted}
             />
           </View>
+        )}
+
+        {mode === "signup" && (
+          <>
+            <View style={styles.inputRow}>
+              <Ionicons name="person-outline" size={18} color={colors.textMuted} />
+              <TextInput style={styles.input} placeholder="Full name" value={name}
+                onChangeText={setName} placeholderTextColor={colors.textMuted} />
+            </View>
+            <View style={styles.inputRow}>
+              <Ionicons name="calendar-outline" size={18} color={colors.textMuted} />
+              <TextInput style={styles.input} placeholder="Age" keyboardType="number-pad"
+                value={age} onChangeText={setAge} placeholderTextColor={colors.textMuted} />
+            </View>
+            <Text style={styles.fieldLabel}>Gender</Text>
+            <View style={styles.chips}>
+              {GENDERS.map(g => (
+                <Pressable key={g} onPress={() => setGender(g)}
+                  style={[styles.chip, gender === g && styles.chipOn]}>
+                  <Text style={[styles.chipText, gender === g && styles.chipTextOn]}>{g}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.inputRow}>
+              <Ionicons name="resize-outline" size={18} color={colors.textMuted} />
+              <TextInput style={styles.input} placeholder="Height (cm)" keyboardType="decimal-pad"
+                value={heightCm} onChangeText={setHeightCm} placeholderTextColor={colors.textMuted} />
+            </View>
+            <View style={styles.inputRow}>
+              <Ionicons name="barbell-outline" size={18} color={colors.textMuted} />
+              <TextInput style={styles.input} placeholder="Weight (kg)" keyboardType="decimal-pad"
+                value={weightKg} onChangeText={setWeightKg} placeholderTextColor={colors.textMuted} />
+            </View>
+            <Text style={styles.fieldLabel}>Activity level</Text>
+            <View style={styles.chips}>
+              {ACTIVITIES.map(a => (
+                <Pressable key={a} onPress={() => setActivity(a)}
+                  style={[styles.chip, activity === a && styles.chipOn]}>
+                  <Text style={[styles.chipText, activity === a && styles.chipTextOn]}>
+                    {a.replace("_", " ")}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
         )}
 
         {error && <Text style={styles.error}>{error}</Text>}
@@ -193,12 +304,14 @@ export default function AuthScreen() {
           configured or you just want to explore the dashboard.
         </Text>
       </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center", padding: 24 },
+  root: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   card: { width: "100%", maxWidth: 420, backgroundColor: colors.card, padding: 22, borderRadius: 16, borderWidth: 1, borderColor: colors.border, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   title: { fontSize: 26, fontWeight: "800", color: colors.text, textAlign: "center" },
   subtitle: { color: colors.textMuted, textAlign: "center", marginTop: 4, marginBottom: 16 },
@@ -217,4 +330,10 @@ const styles = StyleSheet.create({
   demoBtn: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, borderWidth: 1, borderColor: colors.primary, borderRadius: 10, paddingVertical: 12 },
   demoText: { color: colors.primary, fontWeight: "700", fontSize: 14 },
   disclaimer: { fontSize: 11, color: colors.textMuted, textAlign: "center", marginTop: 10, lineHeight: 16 },
+  fieldLabel: { color: colors.text, fontWeight: "600", fontSize: 13, marginTop: 2, marginBottom: 6 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
+  chip: { borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: "#fafafa" },
+  chipOn: { borderColor: colors.primary, backgroundColor: colors.primary },
+  chipText: { color: colors.text, fontSize: 12, textTransform: "capitalize" },
+  chipTextOn: { color: "#fff", fontWeight: "700" },
 });

@@ -79,11 +79,13 @@ def test_require_auth_allows_valid_token(app, client, monkeypatch):
 def test_bootstrap_creates_profile_and_goals(app, client, monkeypatch):
     monkeypatch.setenv("FIREBASE_ACTIVE_UID", "newUser")
     monkeypatch.delenv("REQUIRE_AUTH", raising=False)
-    d = client.post("/api/auth/bootstrap", json={"name": "Asmaa"}).get_json()["data"]
+    d = client.post("/api/auth/bootstrap", json={}).get_json()["data"]
     assert d["uid"] == "newUser"
     assert d["created_profile"] is True and d["created_goals"] is True
-    assert d["profile"]["name"] == "Asmaa"
-    assert d["profile"]["activity"] == "unknown"
+    # Bootstrap creates a MINIMAL profile that is intentionally incomplete —
+    # required fields are filled later during onboarding (PUT /api/profile/me).
+    assert d["profile_complete"] is False
+    assert d["needs_onboarding"] is True
     assert d["goals"] == {"steps": 5000, "calories": 500, "sleep": 8}
     # Reports which backend actually wrote + that it succeeded.
     assert d["write_backend"] == "memory" and d["write_ok"] is True
@@ -172,3 +174,144 @@ def test_chat_uses_token_uid(app, client, monkeypatch):
         headers={"Authorization": "Bearer tok"},
     ).get_json()["data"]
     assert "72" in d["response"]
+
+
+def test_signup_flow_creates_rtdb_profile_and_goals(app, client, monkeypatch):
+    """End-to-end: signup → verified token → bootstrap creates /users/{uid}/profile + goals.
+    
+    This is the core flow:
+    1. Mobile creates user in Firebase Auth (not simulated here, done by Firebase)
+    2. Mobile calls bootstrap with a valid token
+    3. Backend verifies token and creates profile/goals in RTDB
+    4. Profile and goals are readable from RTDB, not fake telemetry
+    """
+    fb = app.config["FIREBASE"]
+    new_uid = "user-signup-test-001"
+    
+    # Simulate: mobile calls bootstrap with a valid ID token for a new user.
+    # In real flow, the token comes from Firebase Auth (not mocked here).
+    monkeypatch.setattr(
+        fb, "verify_id_token",
+        lambda t: new_uid if t == "valid-token" else None
+    )
+    monkeypatch.setattr(
+        fb, "verify_id_token_claims",
+        lambda t: {
+            "uid": new_uid,
+            "email": "newuser@example.com",
+            "email_verified": True,
+        } if t == "valid-token" else None
+    )
+    
+    # Before bootstrap: no profile or goals exist.
+    assert fb.read_profile(new_uid) is None
+    assert fb.read_goals(new_uid) is None
+    assert fb.read_latest(new_uid) is None
+    assert fb.read_history(new_uid) == []
+    
+    # Mobile sends bootstrap request with valid token.
+    r = client.post(
+        "/api/auth/bootstrap",
+        json={},  # no body needed, uid comes from token
+        headers={"Authorization": f"Bearer valid-token"},
+    )
+    assert r.status_code == 200
+    
+    data = r.get_json()["data"]
+    
+    # Verify response structure.
+    assert data["uid"] == new_uid
+    assert data["created_profile"] is True
+    assert data["created_goals"] is True
+    assert data["profile_complete"] is False  # bootstrap creates incomplete profile
+    assert data["needs_onboarding"] is True   # so onboarding is needed
+    assert data["write_backend"] == "memory"  # test uses in-memory mode
+    assert data["write_ok"] is True
+    assert len(data["missing_fields"]) == 6  # all 6 required fields missing
+    
+    # Verify profile structure.
+    assert data["profile"]["uid"] == new_uid
+    assert data["profile"]["email"] == "newuser@example.com"
+    assert data["profile"]["name"] == ""  # empty, waiting for onboarding
+    assert data["profile"]["profile_complete"] is False
+    assert data["profile"]["onboarding_completed"] is False
+    assert "created_at" in data["profile"]
+    assert "updated_at" in data["profile"]
+    
+    # Verify goals structure.
+    assert data["goals"] == {"steps": 5000, "calories": 500, "sleep": 8}
+    
+    # Verify RTDB has been updated: profile and goals exist.
+    profile_in_db = fb.read_profile(new_uid)
+    assert profile_in_db is not None
+    assert profile_in_db["uid"] == new_uid
+    assert profile_in_db["email"] == "newuser@example.com"
+    
+    goals_in_db = fb.read_goals(new_uid)
+    assert goals_in_db is not None
+    assert goals_in_db["steps"] == 5000
+    
+    # Verify bootstrap does NOT create fake telemetry/history.
+    # These should only exist when the real bracelet writes data.
+    assert fb.read_latest(new_uid) is None, "bootstrap should not create latest_telemetry"
+    assert fb.read_history(new_uid) == [], "bootstrap should not create history"
+
+
+def test_signup_bootstrap_with_invalid_token_returns_401(app, client, monkeypatch):
+    """Invalid token → 401 UNAUTHORIZED, no profile created."""
+    fb = app.config["FIREBASE"]
+    
+    monkeypatch.setattr(fb, "verify_id_token", lambda t: None)
+    
+    r = client.post(
+        "/api/auth/bootstrap",
+        json={},
+        headers={"Authorization": "Bearer invalid-token"},
+    )
+    assert r.status_code == 401
+    assert r.get_json()["error"]["code"] == "UNAUTHORIZED"
+
+
+def test_bootstrap_idempotent_on_second_call(app, client, monkeypatch):
+    """Calling bootstrap twice with same token should be idempotent.
+    
+    Second call: profile/goals already exist, so created_profile/goals are False,
+    but existing data is preserved.
+    """
+    fb = app.config["FIREBASE"]
+    uid = "user-idempotent-test"
+    
+    monkeypatch.setattr(fb, "verify_id_token", lambda t: uid if t == "tok" else None)
+    monkeypatch.setattr(
+        fb, "verify_id_token_claims",
+        lambda t: {"uid": uid, "email": "test@example.com"} if t == "tok" else None
+    )
+    
+    # First bootstrap call.
+    r1 = client.post("/api/auth/bootstrap", json={}, headers={"Authorization": "Bearer tok"})
+    d1 = r1.get_json()["data"]
+    assert d1["created_profile"] is True
+    assert d1["created_goals"] is True
+    
+    # Update profile (user completes onboarding).
+    fb.write_profile(uid, {
+        **d1["profile"],
+        "name": "Test User",
+        "age": 25,
+        "gender": "other",
+        "height_cm": 170,
+        "weight_kg": 75,
+        "activity": "moderate",
+    })
+    
+    # Second bootstrap call.
+    r2 = client.post("/api/auth/bootstrap", json={}, headers={"Authorization": "Bearer tok"})
+    d2 = r2.get_json()["data"]
+    assert d2["uid"] == uid
+    assert d2["created_profile"] is False  # already existed
+    assert d2["created_goals"] is False    # already existed
+    assert d2["profile_complete"] is True  # now complete
+    assert d2["needs_onboarding"] is False # no onboarding needed
+    # Existing profile data preserved.
+    assert d2["profile"]["name"] == "Test User"
+    assert d2["profile"]["age"] == 25

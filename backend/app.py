@@ -78,6 +78,129 @@ def _now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
+# ---------------------------------------------------------------------------
+# Profile completion logic (signup / login / onboarding gating).
+#
+# A profile is COMPLETE only when all required fields are present AND valid.
+# "Profile exists" != "profile complete": the bootstrap creates a minimal
+# (empty) profile that is intentionally NOT complete until onboarding fills it.
+# ---------------------------------------------------------------------------
+REQUIRED_PROFILE_FIELDS = (
+    "name", "age", "gender", "height_cm", "weight_kg", "activity",
+)
+OPTIONAL_PROFILE_FIELDS = ("blood_type", "emergency_contact", "photo")
+_VALID_GENDERS = {"male", "female", "other"}
+_VALID_ACTIVITY = {"sedentary", "light", "moderate", "active", "very_active"}
+
+
+def _field_is_valid(field: str, value: Any) -> bool:
+    """True if a required field is PRESENT with a usable value.
+
+    Completeness is presence-based on purpose: a real saved profile must not be
+    bounced back to onboarding just because its gender/activity text doesn't
+    match our canonical enum spelling (e.g. "Moderately active"). Only numeric
+    fields are range-checked. Strict enum validation still applies to NEW input
+    in clean_profile_input(); it does NOT gate completeness of existing data.
+    """
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return False
+    if field == "age":
+        try:
+            return 1 <= int(float(value)) <= 120
+        except (TypeError, ValueError):
+            return False
+    if field in ("height_cm", "weight_kg"):
+        try:
+            return float(value) > 0
+        except (TypeError, ValueError):
+            return False
+    # name, gender, activity → present & non-empty is sufficient.
+    return True
+
+
+def profile_completeness(profile: Optional[Dict[str, Any]]):
+    """Return (is_complete, missing_fields) from the REQUIRED fields.
+
+    Tolerates legacy aliases `height`/`weight` for `height_cm`/`weight_kg` so
+    older users created before the field rename are still recognised."""
+    profile = profile or {}
+    missing: list = []
+    for field in REQUIRED_PROFILE_FIELDS:
+        value = profile.get(field)
+        if value in (None, ""):
+            if field == "height_cm":
+                value = profile.get("height")
+            elif field == "weight_kg":
+                value = profile.get("weight")
+        if not _field_is_valid(field, value):
+            missing.append(field)
+    return (len(missing) == 0, missing)
+
+
+def clean_profile_input(body: Dict[str, Any]):
+    """Validate + normalise an incoming profile update.
+
+    Returns (cleaned, invalid_fields). `cleaned` holds only the fields that were
+    valid (required + any provided optional fields)."""
+    body = body or {}
+    cleaned: Dict[str, Any] = {}
+    invalid: list = []
+
+    name = body.get("name")
+    if isinstance(name, str) and name.strip():
+        cleaned["name"] = name.strip()
+    else:
+        invalid.append("name")
+
+    try:
+        age = int(body.get("age"))
+        if 1 <= age <= 120:
+            cleaned["age"] = age
+        else:
+            invalid.append("age")
+    except (TypeError, ValueError):
+        invalid.append("age")
+
+    gender = body.get("gender")
+    if isinstance(gender, str) and gender.strip().lower() in _VALID_GENDERS:
+        cleaned["gender"] = gender.strip().lower()
+    else:
+        invalid.append("gender")
+
+    height = body.get("height_cm", body.get("height"))
+    try:
+        h = float(height)
+        if 30 <= h <= 300:
+            cleaned["height_cm"] = h
+        else:
+            invalid.append("height_cm")
+    except (TypeError, ValueError):
+        invalid.append("height_cm")
+
+    weight = body.get("weight_kg", body.get("weight"))
+    try:
+        w = float(weight)
+        if 2 <= w <= 500:
+            cleaned["weight_kg"] = w
+        else:
+            invalid.append("weight_kg")
+    except (TypeError, ValueError):
+        invalid.append("weight_kg")
+
+    activity = body.get("activity")
+    if isinstance(activity, str) and activity.strip().lower() in _VALID_ACTIVITY:
+        cleaned["activity"] = activity.strip().lower()
+    else:
+        invalid.append("activity")
+
+    # Optional fields pass through verbatim when provided.
+    for opt in OPTIONAL_PROFILE_FIELDS:
+        if opt in body and body[opt] is not None:
+            cleaned[opt] = body[opt]
+
+    return cleaned, invalid
+
+
 class AuthRequired(Exception):
     """Raised when a request needs a valid Firebase ID token and none is
     usable (invalid token, or missing token while REQUIRE_AUTH is on)."""
@@ -664,6 +787,7 @@ def create_app() -> Flask:
     @limiter.limit(os.environ.get("RATE_LIMIT_TELEMETRY", "60 per minute"))
     def post_telemetry():
         payload = request.get_json(silent=True) or {}
+        device_id = payload.get("device_id")  # optional device identifier
         uid = _resolve_uid(payload)
         # raises TelemetryValidationError → 400
         analysis = analyze(payload)
@@ -691,8 +815,21 @@ def create_app() -> Flask:
 
         # Write to the USER-scoped node — the live source of truth that
         # /api/vitals/* reads back (/users/{uid}/latest_telemetry + history).
-        firebase.write_latest(uid, clean)
-        firebase.push_history(uid, clean)
+        logger.info(
+            "telemetry.post START: uid=%s device_id=%s source=%s firebase_mode=%s "
+            "targets=users/%s/{latest_telemetry,history}",
+            uid, device_id or "(none)", clean.get("source", "unknown"),
+            firebase.firebase_mode, uid
+        )
+        
+        latest_ok = firebase.write_latest(uid, clean)
+        history_ok = firebase.push_history(uid, clean)
+        
+        logger.info(
+            "telemetry.post WRITE: uid=%s latest_ok=%s history_ok=%s "
+            "paths=users/%s/latest_telemetry,users/%s/history",
+            uid, latest_ok, history_ok, uid, uid
+        )
 
         if analysis["risk_level"] != "normal":
             alert = {
@@ -708,6 +845,12 @@ def create_app() -> Flask:
         _maybe_alert_battery(uid, clean)
 
         _metrics["telemetry_ingested"] += 1
+        logger.info(
+            "telemetry.post SUCCESS: uid=%s risk_level=%s timestamp=%s "
+            "source=%s",
+            uid, analysis["risk_level"], clean.get("timestamp"), 
+            clean.get("source", "unknown")
+        )
         return ok(
             {"telemetry": clean, "analysis": analysis},
             "Telemetry stored",
@@ -983,11 +1126,19 @@ def create_app() -> Flask:
         # Email comes from the verified token (if a Bearer token was sent).
         email = ""
         auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
+        bearer_present = auth_header.startswith("Bearer ")
+        if bearer_present:
             claims = firebase.verify_id_token_claims(
                 auth_header[len("Bearer "):].strip()
             ) or {}
             email = claims.get("email", "") or ""
+
+        # Safe request log — field/flag names only, never the token or values.
+        logger.info(
+            "auth.bootstrap START: uid=%s auth_header_present=%s "
+            "firebase_mode=%s targets=users/%s/{profile,goals}",
+            uid, bearer_present, firebase.firebase_mode, uid,
+        )
 
         now = _now_iso()
         write_backend = firebase.firebase_mode  # admin_sdk | rest | memory | …
@@ -997,38 +1148,121 @@ def create_app() -> Flask:
         created_goals = False
         write_ok = True
 
+        logger.debug(
+            "auth.bootstrap uid=%s existing_profile=%s existing_goals=%s",
+            uid, profile is not None, goals is not None,
+        )
+
+        # Explicit signup / profile-save path: a `profile` object in the body is
+        # the one-screen signup form. Validate and persist it (this is the only
+        # case where bootstrap overwrites profile fields). Completeness flags are
+        # set from the result so a full signup form → profile_complete=true.
+        incoming = body.get("profile")
+        incoming = incoming if isinstance(incoming, dict) else None
+        saved_submitted = False
+        if incoming:
+            cleaned, invalid = clean_profile_input(incoming)
+            if invalid:
+                return err(
+                    "INVALID_INPUT",
+                    "Invalid or missing required profile fields: "
+                    + ", ".join(invalid),
+                    status=400,
+                    details={"invalid_fields": invalid},
+                )
+            existing = profile or {}
+            created_profile = profile is None
+            profile = {**existing, **cleaned}
+            profile["uid"] = uid
+            if email and not profile.get("email"):
+                profile["email"] = email
+            profile["created_at"] = existing.get("created_at") or now
+            profile["updated_at"] = now
+            _c, _ = profile_completeness(profile)
+            profile["profile_complete"] = _c
+            profile["onboarding_completed"] = _c
+            write_ok = firebase.write_profile(uid, profile) and write_ok
+            saved_submitted = True
+            logger.info(
+                "auth.bootstrap uid=%s SAVED submitted profile complete=%s "
+                "path=users/%s/profile",
+                uid, _c, uid,
+            )
+
         if not profile:
+            # Minimal profile — intentionally INCOMPLETE until onboarding fills
+            # the required fields. Never fabricate required values here.
             profile = {
                 "uid": uid,
                 "email": email,
-                "name": body.get("name") or "",
-                "age": body.get("age"),
-                "gender": body.get("gender"),
-                "height": body.get("height"),
-                "weight": body.get("weight"),
-                "activity": body.get("activity") or "unknown",
+                "name": "",
+                "age": None,
+                "gender": None,
+                "height_cm": None,
+                "weight_kg": None,
+                "activity": None,
+                "blood_type": "",
+                "emergency_contact": "",
+                "photo": "",
+                "profile_complete": False,
+                "onboarding_completed": False,
                 "created_at": now,
                 "updated_at": now,
             }
             write_ok = firebase.write_profile(uid, profile) and write_ok
             created_profile = True
+            logger.info(
+                "auth.bootstrap uid=%s CREATED profile write_ok=%s path=users/%s/profile",
+                uid, write_ok, uid,
+            )
 
         if not goals:
             goals = {"steps": 5000, "calories": 500, "sleep": 8}
             write_ok = firebase.write_goals(uid, goals) and write_ok
             created_goals = True
+            logger.info(
+                "auth.bootstrap uid=%s CREATED goals write_ok=%s path=users/%s/goals",
+                uid, write_ok, uid,
+            )
 
-        # Safe log (no token/secret): what was written and where.
+        # Completeness drives onboarding routing, inferred from the REQUIRED
+        # fields (not from a flag). A freshly bootstrapped profile is incomplete.
+        complete, missing = profile_completeness(profile)
+        # Legacy / existing users: required fields present but no explicit flag →
+        # infer completion and best-effort backfill the flags + updated_at via
+        # the Admin SDK. We write back the full (read) profile, so NO user value
+        # is overwritten — only the flags/updated_at are added. Never fail the
+        # request over a flag write.
+        if complete and not profile.get("profile_complete"):
+            profile["profile_complete"] = True
+            profile["onboarding_completed"] = True
+            profile["updated_at"] = _now_iso()
+            try:
+                firebase.write_profile(uid, profile)
+                logger.debug("auth.bootstrap uid=%s backfilled profile_complete flag", uid)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("auth.bootstrap uid=%s failed to backfill flags: %s", uid, e)
+
+        # Safe debug log: field names only — never values/tokens/secrets.
         logger.info(
-            "bootstrap uid=%s write_backend=%s created_profile=%s "
-            "created_goals=%s write_ok=%s paths=users/%s/{profile,goals}",
-            uid, write_backend, created_profile, created_goals, write_ok, uid,
+            "auth.bootstrap uid=%s profile_complete=%s needs_onboarding=%s "
+            "missing_fields=%s present_fields=%s",
+            uid,
+            complete,
+            not complete,
+            missing,
+            [f for f in REQUIRED_PROFILE_FIELDS if f not in missing],
         )
 
         # A write was attempted but did NOT persist (e.g. REST read-only or
         # admin_error in real Firebase mode) → fail loudly instead of pretending
         # the user was created. Never silently swallow a failed RTDB write.
-        if (created_profile or created_goals) and not write_ok:
+        if (created_profile or created_goals or saved_submitted) and not write_ok:
+            logger.error(
+                "auth.bootstrap uid=%s FAILED: write_backend=%s write_ok=%s "
+                "firebase_error=%s",
+                uid, write_backend, write_ok, firebase.last_error,
+            )
             return err(
                 "FIREBASE_WRITE_FAILED",
                 f"Could not persist the user to Firebase (write_backend="
@@ -1045,15 +1279,109 @@ def create_app() -> Flask:
                 },
             )
 
+        logger.info(
+            "auth.bootstrap uid=%s SUCCESS: write_backend=%s created_profile=%s "
+            "created_goals=%s write_ok=%s paths=users/%s/{profile,goals}",
+            uid, write_backend, created_profile, created_goals, write_ok, uid,
+        )
+
         return ok({
             "uid": uid,
             "created_profile": created_profile,
             "created_goals": created_goals,
+            "profile_complete": complete,
+            "needs_onboarding": not complete,
+            "missing_fields": missing,
             "firebase_mode": write_backend,
             "write_backend": write_backend,
             "write_ok": write_ok,
             "profile": profile,
             "goals": goals,
+        })
+
+    @app.get("/api/me")
+    def api_me():
+        """The signed-in user's profile + goals + completeness, for routing.
+        Auth: `Authorization: Bearer <firebase_id_token>` (token-first; the uid
+        comes from the verified token, never the client)."""
+        uid = _active_uid()
+        if not uid:
+            return err("UNAUTHORIZED", "No authenticated user.", 401)
+        profile = firebase.read_profile(uid)
+        goals = firebase.read_goals(uid)
+        complete, missing = profile_completeness(profile)
+        logger.info(
+            "auth.me uid=%s present=%s missing=%s profile_complete=%s "
+            "needs_onboarding=%s",
+            uid,
+            [f for f in REQUIRED_PROFILE_FIELDS if f not in missing],
+            missing, complete, not complete,
+        )
+        return ok({
+            "uid": uid,
+            "profile": profile,
+            "goals": goals,
+            "profile_complete": complete,
+            "needs_onboarding": not complete,
+            "missing_fields": missing,
+        })
+
+    @app.put("/api/profile/me")
+    def update_profile_me():
+        """Update the signed-in user's profile (onboarding / profile edit).
+        Auth: Bearer token (verified uid only). Validates required fields,
+        preserves created_at, sets updated_at, and sets profile_complete +
+        onboarding_completed when the required fields are valid. Writes ONLY via
+        the backend (Admin SDK) — the client never writes Firebase directly."""
+        uid = _active_uid()
+        if not uid:
+            return err("UNAUTHORIZED", "No authenticated user.", 401)
+        body = request.get_json(silent=True) or {}
+        cleaned, invalid = clean_profile_input(body)
+        if invalid:
+            return err(
+                "INVALID_INPUT",
+                "Invalid or missing required fields: " + ", ".join(invalid),
+                status=400,
+                details={"invalid_fields": invalid},
+            )
+
+        existing = firebase.read_profile(uid) or {}
+        now = _now_iso()
+        merged: Dict[str, Any] = {**existing, **cleaned}
+        merged["uid"] = uid
+        merged["created_at"] = existing.get("created_at") or now
+        merged["updated_at"] = now
+        complete, missing = profile_completeness(merged)
+        merged["profile_complete"] = complete
+        merged["onboarding_completed"] = complete
+
+        if not firebase.write_profile(uid, merged):
+            return err(
+                "FIREBASE_WRITE_FAILED",
+                "Could not save the profile to Firebase. The backend must run "
+                "with Admin SDK credentials to write the locked database.",
+                status=500,
+                details={
+                    "uid": uid,
+                    "write_backend": firebase.firebase_mode,
+                    "write_ok": False,
+                    "firebase_error": firebase.last_error,
+                },
+            )
+
+        logger.info(
+            "profile/me uid=%s profile_complete=%s write_backend=%s",
+            uid, complete, firebase.firebase_mode,
+        )
+        return ok({
+            "uid": uid,
+            "profile": merged,
+            "profile_complete": complete,
+            "needs_onboarding": not complete,
+            "missing_fields": missing,
+            "write_backend": firebase.firebase_mode,
+            "write_ok": True,
         })
 
     @app.get("/api/auth/bootstrap/check")
@@ -1262,11 +1590,51 @@ def create_app() -> Flask:
             telemetry["ml_risk_label"] = analysis["ml"].get("risk", {}).get("label")
             telemetry["ml_anomaly_score"] = analysis["ml"].get("anomaly", {}).get("score")
 
-        # Arduino doesn't send a uid — use the last UID seen from frontend
+        # Resolve which user this bracelet reading belongs to (device pairing),
+        # in priority order. The unsafe "last frontend uid" guessing is NOT used.
+        #   1. explicit user_id/uid in the payload (paired client / testing)
+        #   2. PRODUCTION: device pairing via /devices/{device_id}/assigned_uid
+        #   3. DEMO/DEV ONLY: FIREBASE_ACTIVE_UID (clearly not a production path)
         explicit_uid = payload.get("user_id") or payload.get("uid")
-        uid = explicit_uid or _last_frontend_uid["uid"] or _resolve_uid(payload)
-        firebase.write_latest(uid, telemetry)
+        device_id = payload.get("device_id")
+        assigned_uid = (
+            firebase.read_device_assigned_uid(device_id) if device_id else None
+        )
+        demo_uid = os.environ.get("FIREBASE_ACTIVE_UID")  # demo/dev fallback only
+        uid = explicit_uid or assigned_uid or demo_uid
+        if not uid:
+            return err(
+                "NO_TARGET_USER",
+                "No user is paired with this bracelet. Send user_id, pair the "
+                "device at /devices/{device_id}/assigned_uid, or set "
+                "FIREBASE_ACTIVE_UID for a demo.",
+                status=400,
+            )
+
+        # Persist under the resolved user. Fail loudly if the write does not
+        # land in the real database — never pretend success.
+        if not firebase.write_latest(uid, telemetry):
+            logger.error(
+                "update_telemetry uid=%s write FAILED (write_backend=%s err=%s)",
+                uid, firebase.firebase_mode, firebase.last_error,
+            )
+            return err(
+                "FIREBASE_WRITE_FAILED",
+                "Could not persist telemetry to Firebase.",
+                status=500,
+                details={
+                    "uid": uid,
+                    "write_backend": firebase.firebase_mode,
+                    "write_ok": False,
+                    "firebase_error": firebase.last_error,
+                },
+            )
         firebase.push_history(uid, telemetry)
+        logger.info(
+            "update_telemetry uid=%s device_id=%s source=%s wrote "
+            "users/%s/{latest_telemetry,history}",
+            uid, device_id, telemetry.get("source"), uid,
+        )
 
         if analysis["risk_level"] != "normal":
             firebase.push_alert(uid, {

@@ -20,6 +20,11 @@ export default defineConfig(() => ({
         target: "http://127.0.0.1:8000",
         changeOrigin: true,
       },
+      // The medical SLM chatbot endpoint is served at the root (/ai/...).
+      "/ai": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
     },
   },
   plugins: [react()],

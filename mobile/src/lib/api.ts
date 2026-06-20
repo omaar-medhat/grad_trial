@@ -199,11 +199,46 @@ export interface BootstrapResult {
   uid: string;
   created_profile: boolean;
   created_goals: boolean;
+  profile_complete: boolean;
+  needs_onboarding: boolean;
+  missing_fields: string[];
   firebase_mode?: string;
   write_backend?: string;
   write_ok?: boolean;
   profile: UserProfile;
   goals: UserGoals;
+}
+
+export interface MeResult {
+  uid: string;
+  profile: UserProfile | null;
+  goals: UserGoals | null;
+  profile_complete: boolean;
+  needs_onboarding: boolean;
+  missing_fields: string[];
+}
+
+export interface ProfileUpdateResult {
+  uid: string;
+  profile: UserProfile;
+  profile_complete: boolean;
+  needs_onboarding: boolean;
+  missing_fields: string[];
+  write_backend?: string;
+  write_ok?: boolean;
+}
+
+/** Required + optional fields the onboarding / profile-edit form submits. */
+export interface ProfileInput {
+  name: string;
+  age: number | string;
+  gender: string;
+  height_cm: number | string;
+  weight_kg: number | string;
+  activity: string;
+  blood_type?: string;
+  emergency_contact?: string;
+  photo?: string;
 }
 
 /** Debug helper: is an auth token currently available? (never returns the token) */
@@ -225,10 +260,23 @@ export const api = {
   health: () => call<HealthInfo>("/api/health"),
   // Idempotently ensure the signed-in user's /users/{uid}/profile + goals
   // exist. The backend uses the VERIFIED token uid (attached automatically).
-  bootstrap: (profile?: Partial<UserProfile>) =>
+  // Idempotently ensure profile+goals exist. On signup, pass the collected
+  // profile fields and the backend saves them (one-screen signup) and returns
+  // profile_complete=true. The verified token uid is attached automatically.
+  bootstrap: (profile?: Partial<ProfileInput>) =>
     call<BootstrapResult>("/api/auth/bootstrap", {
       method: "POST",
-      body: JSON.stringify(profile ?? {}),
+      body: JSON.stringify(profile ? { profile } : {}),
+    }),
+  // The signed-in user's profile + goals + completeness (for routing). Uses the
+  // verified token uid attached automatically — never writes Firebase directly.
+  me: () => call<MeResult>("/api/me"),
+  // Save the user's profile via the backend (Admin SDK). The ONLY write path —
+  // the mobile app never writes Firebase RTDB directly.
+  updateProfile: (profile: ProfileInput) =>
+    call<ProfileUpdateResult>("/api/profile/me", {
+      method: "PUT",
+      body: JSON.stringify(profile),
     }),
   getLatest: (uid: string) => call<Vitals>(`/api/vitals/latest?${uidQ(uid)}`),
   getDeviceStatus: (uid: string) =>

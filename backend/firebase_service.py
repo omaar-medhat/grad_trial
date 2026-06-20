@@ -341,14 +341,31 @@ class FirebaseService:
             logger.warning("Firebase REST write failed for '%s': %s", path, exc)
             return False
 
-    def write_latest(self, uid: str, telemetry: Dict[str, Any]) -> None:
+    def write_latest(self, uid: str, telemetry: Dict[str, Any]) -> bool:
+        """Persist /users/{uid}/latest_telemetry. Returns True on success so the
+        ingest endpoint can fail loudly instead of pretending success."""
         if self._mode == "admin_sdk":
-            self._db.reference(f"users/{uid}/latest_telemetry").set(telemetry)
-        elif self._mode == "rest" and self._database_url:
-            self._rest_put(f"users/{uid}/latest_telemetry", telemetry)
+            return self._admin_set(f"users/{uid}/latest_telemetry", telemetry)
+        if self._mode == "rest" and self._database_url:
+            ok = self._rest_put(f"users/{uid}/latest_telemetry", telemetry)
             self._memory.set_latest(uid, telemetry)
+            return ok
+        self._memory.set_latest(uid, telemetry)
+        return True
+
+    def read_device_assigned_uid(self, device_id: str) -> Optional[str]:
+        """Read /devices/{device_id}/assigned_uid — the device→user pairing
+        used to route bracelet telemetry to the right user in production."""
+        if not device_id:
+            return None
+        path = f"devices/{device_id}/assigned_uid"
+        if self._mode == "admin_sdk":
+            val = self._admin_ref(path)
+        elif self._mode == "rest":
+            val = self._rest_get(path)
         else:
-            self._memory.set_latest(uid, telemetry)
+            val = None  # memory mode has no device registry
+        return str(val) if val else None
 
     def _admin_ref(self, path: str):
         """Admin SDK read with live read-health tracking. ``builder`` may shape

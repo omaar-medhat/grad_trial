@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/lib/api";
 import { colors } from "@/config";
 
 export default function Splash() {
@@ -9,10 +10,32 @@ export default function Splash() {
 
   useEffect(() => {
     if (loading) return;
-    const t = setTimeout(() => {
-      router.replace(user ? "/(tabs)/dashboard" : "/auth");
-    }, 600);
-    return () => clearTimeout(t);
+    let cancelled = false;
+
+    // Wait for the profile-completeness result BEFORE navigating, so a
+    // logged-in user lands on onboarding vs dashboard correctly (no route loop,
+    // no re-asking complete users). Demo users skip the backend check.
+    const decide = async () => {
+      if (!user) {
+        router.replace("/auth");
+        return;
+      }
+      if (user.isDemo) {
+        router.replace("/(tabs)/dashboard");
+        return;
+      }
+      const me = await api.me();
+      if (cancelled) return;
+      router.replace(
+        me.ok && me.data.needs_onboarding ? "/onboarding" : "/(tabs)/dashboard",
+      );
+    };
+
+    const t = setTimeout(decide, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [user, loading]);
 
   return (
